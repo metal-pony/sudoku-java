@@ -1090,8 +1090,8 @@ public class Sudoku {
         long timeoutMs,
         boolean useSieve
     ) {
-        if (numClues < MIN_CLUES)
-            return null;
+        if (numClues < MIN_CLUES || numClues > SPACES)
+            throw new IllegalArgumentException("Invalid number of clues");
         if (sieve != null && grid == null)
             throw new IllegalArgumentException("Sieve provided without grid");
         if (grid == null)
