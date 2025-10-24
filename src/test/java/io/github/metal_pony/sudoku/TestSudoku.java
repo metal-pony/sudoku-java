@@ -277,20 +277,22 @@ public class TestSudoku {
         }
 
         @Test
-        void generatePuzzle_whenNumCluesLessThanMin_returnsNull() {
+        void generatePuzzle_whenNumCluesLessThanMin_throws() {
             for (int clues = 16; clues > -100; clues--) {
-                assertNull(
-                    Sudoku.generatePuzzle(null, clues, null, 0, 0L, true)
-                );
+                final int _clues = clues;
+                assertThrows(IllegalArgumentException.class, () -> {
+                    Sudoku.generatePuzzle(null, _clues, null, 0, 0L, true);
+                });
             }
         }
 
         @Test
-        void generatePuzzles_whenNumCluesMoreThanSpaces_returnsFullGrid() {
+        void generatePuzzles_whenNumCluesMoreThanSpaces_throws() {
             for (int clues = 82; clues < 100; clues++) {
-                Sudoku p = Sudoku.generatePuzzle(null, clues, null, 0, 0L, true);
-                assertTrue(p.isFull());
-                assertEquals(0, p.numEmptyCells());
+                final int _clues = clues;
+                assertThrows(IllegalArgumentException.class, () -> {
+                    Sudoku.generatePuzzle(null, _clues, null, 0, 0L, true);
+                });
             }
         }
 
