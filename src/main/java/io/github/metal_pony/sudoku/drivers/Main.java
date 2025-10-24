@@ -101,6 +101,7 @@ public class Main {
     // --clues %d
     put("play", Main::play);
     // --amount %d --normalize
+    put("gen", Main::gen);
     put("generateConfigs", Main::generateConfigs);
     put("benchConfigs", Main::benchConfigGeneration);
     // --amount %d --clues %d --threads %d
@@ -288,6 +289,42 @@ Commands:
     int clues = inBounds(Integer.parseInt(args.get("clues")), 17, 81);
     Sudoku puzzle = Sudoku.generatePuzzle(clues);
     SudokuGuiDemo.show(puzzle);
+  }
+
+  private static int parseThreadsArgOrThrow(ArgsMap args) {
+    int MAX_THREADS = Runtime.getRuntime().availableProcessors();
+    int threads = 1;
+    if (args.containsKey("threads")) {
+      if (args.get("threads") == null) {
+        threads = MAX_THREADS;
+      } else {
+        try {
+          threads = Integer.parseInt(args.get("threads"));
+        } catch (NumberFormatException ex) {
+          System.err.println("ERROR: Bad argument '--threads'.");
+          System.exit(1);
+        }
+      }
+    }
+
+    if (threads < 1) {
+      System.err.println("ERROR: Bad argument '--threads'.");
+      System.exit(1);
+    } else if (threads > MAX_THREADS) {
+      System.err.printf(
+        "WARNING: --threads '%d' specified, but system only has %d available -- Consider using less threads.",
+        threads,
+        MAX_THREADS
+      );
+    }
+
+    return threads;
+  }
+
+  private static void gen(ArgsMap args) {
+    defaultInMap(args, "amount", "1");
+
+    int numThreads = parseThreadsArgOrThrow(args);
   }
 
   private static void generateConfigs(ArgsMap args) {
