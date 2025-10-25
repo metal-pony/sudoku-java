@@ -27,7 +27,7 @@
 
     --clues {number}
         Generate a puzzle with the specified number of clues.
-        Min: 17; Max 81.
+        Min 17; Max 81.
 
         A NOTE ABOUT LOW-CLUE PUZZLE GENERATION
 
