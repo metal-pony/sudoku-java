@@ -21,21 +21,19 @@ import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
 
 public class Sudoku {
-    static final char EMPTY_CHAR = '.';
-
     public static final int RANK = 3;
     public static final int DIGITS = 9; // rank^2
     public static final int SPACES = 81; // rank^2^2
     /** Value representing all candidates a cell may be.*/
-    static final int ALL = 511; // 2^rank^2 - 1
+    public static final int ALL = 511; // 2^rank^2 - 1
     public static final int MIN_CLUES = 17; // rank^2 * 2 - 1
 
-    static final int ROW_MASK = ALL << (DIGITS * 2);
-    static final int COL_MASK = ALL << DIGITS;
-    static final int REGION_MASK = ALL;
-    static final int FULL_CONSTRAINTS = ROW_MASK | COL_MASK | REGION_MASK;
+    public static final int ROW_MASK = ALL << (DIGITS * 2);
+    public static final int COL_MASK = ALL << DIGITS;
+    public static final int REGION_MASK = ALL;
+    public static final int FULL_CONSTRAINTS = ROW_MASK | COL_MASK | REGION_MASK;
 
-    public static final int[] ENCODER = new int[] { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256 };
+    static final int[] ENCODER = new int[] { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256 };
     static final int[] DECODER = new int[1<<DIGITS];
     static {
         for (int digit = 1; digit <= DIGITS; digit++) {
@@ -43,14 +41,10 @@ public class Sudoku {
         }
     }
 
-    /**
-     * Maps candidates mask to the array of digits it represents.
-     */
-    public static final int[][] CANDIDATES_ARR = new int[1<<DIGITS][];
+    /** Maps candidates mask to the array of digits it represents.*/
+    static final int[][] CANDIDATES_ARR = new int[1<<DIGITS][];
 
-    /**
-     * Maps candidates masks to the array of digits (encoded) it represents.
-     */
+    /** Maps candidates masks to the array of digits (encoded) it represents.*/
     static final int[][] CANDIDATES = new int[CANDIDATES_ARR.length][];
     static {
         for (int val = 0; val < CANDIDATES_ARR.length; val++) {
@@ -71,15 +65,11 @@ public class Sudoku {
         }
     }
 
-    /**
-     * Maps indices [0, 511] to its bit count.
-     */
+    /** Maps indices [0, 511] to its bit count.*/
     static final int[] BIT_COUNT_MAP = new int[1<<DIGITS];
 
-    /**
-     * Digit combinations indexed by bit count (aka digit count).
-     */
-    public static final int[][] DIGIT_COMBOS_MAP = new int[DIGITS + 1][];
+    /** Digit combinations indexed by bit count (aka digit count).*/
+    static final int[][] DIGIT_COMBOS_MAP = new int[DIGITS + 1][];
     static {
         for (int nDigits = 0; nDigits < DIGIT_COMBOS_MAP.length; nDigits++) {
             DIGIT_COMBOS_MAP[nDigits] = new int[Counting.nChooseK(DIGITS, nDigits).intValueExact()];
@@ -92,18 +82,9 @@ public class Sudoku {
         }
     }
 
-    static int encode(int digit) {
-        return ENCODER[digit];
-    }
-
-    public static int decode(int encoded) {
-        return DECODER[encoded];
-    }
-
-    public static boolean isDigit(int encoded) {
-        return DECODER[encoded] > 0;
-    }
-
+    public static int encode(int digit) { return ENCODER[digit]; }
+    public static int decode(int encoded) { return DECODER[encoded]; }
+    public static boolean isDigit(int encoded) { return DECODER[encoded] > 0; }
     public static int cellRow(int ci) { return ci / DIGITS; }
     public static int cellCol(int ci) { return ci % DIGITS; }
     public static int cellRegion(int ci) {
@@ -112,16 +93,16 @@ public class Sudoku {
         return (regionRow * RANK) + regionCol;
     }
 
-    public static int[] CELL_ROWS = new int[SPACES];
-    public static int[] CELL_COLS = new int[SPACES];
-    public static int[] CELL_REGIONS = new int[SPACES];
-    public static int[][] ROW_INDICES = new int[DIGITS][DIGITS];
-    public static int[][] COL_INDICES = new int[DIGITS][DIGITS];
-    public static int[][] REGION_INDICES = new int[DIGITS][DIGITS];
-    public static int[][] BAND_INDICES = new int[3][3*DIGITS];
-    public static int[][] STACK_INDICES = new int[3][3*DIGITS];
-    public static int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
-    public static int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
+    static int[] CELL_ROWS = new int[SPACES];
+    static int[] CELL_COLS = new int[SPACES];
+    static int[] CELL_REGIONS = new int[SPACES];
+    static int[][] ROW_INDICES = new int[DIGITS][DIGITS];
+    static int[][] COL_INDICES = new int[DIGITS][DIGITS];
+    static int[][] REGION_INDICES = new int[DIGITS][DIGITS];
+    static int[][] BAND_INDICES = new int[3][3*DIGITS];
+    static int[][] STACK_INDICES = new int[3][3*DIGITS];
+    static int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
+    static int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
     static {
         int[] rowi = new int[DIGITS];
         int[] coli = new int[DIGITS];
@@ -150,10 +131,10 @@ public class Sudoku {
             STACK_COL_INDICES[stack][colInStack][row] = i;
         }
     }
-    public static int[][] ROW_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    public static int[][] COL_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    public static int[][] REGION_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    public static int[][] CELL_NEIGHBORS = new int[SPACES][3*(DIGITS-1) - (DIGITS-1)/2]; // Not checked if true for other ranks
+    static int[][] ROW_NEIGHBORS = new int[SPACES][DIGITS - 1];
+    static int[][] COL_NEIGHBORS = new int[SPACES][DIGITS - 1];
+    static int[][] REGION_NEIGHBORS = new int[SPACES][DIGITS - 1];
+    static int[][] CELL_NEIGHBORS = new int[SPACES][3*(DIGITS-1) - (DIGITS-1)/2]; // Not checked if true for other ranks
     static {
         for (int ci = 0; ci < SPACES; ci++) {
             int row = cellRow(ci);
