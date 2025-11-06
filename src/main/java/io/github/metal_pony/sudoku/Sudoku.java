@@ -712,8 +712,12 @@ public class Sudoku {
         return digits[ci];
     }
 
-    public int getCandidate(int ci) {
-        return candidates[ci];
+    /**
+     * Returns an array of digits, candidates for the cell.
+     * @param ci The cell's index.
+     */
+    public int[] getCellCandidates(int ci) {
+        return ArraysUtil.copy(CANDIDATES_ARR[candidates[ci]]);
     }
 
     public void setDigit(int ci, int digit) {
