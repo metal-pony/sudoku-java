@@ -66,11 +66,6 @@ public class Main {
     }
   }
 
-  private static void debug(String msg) { debug(msg, (Object[]) null); }
-  private static void debug(String msg, Object... args) {
-    if (verbose) System.out.printf(msg, args);
-  }
-
   private static final int MAX_THREADS = Runtime.getRuntime().availableProcessors();
 
   static final String RESOURCES_DIR = "resources";
@@ -95,7 +90,52 @@ public class Main {
 
   public static final String DEFAULT_COMMAND = "generateConfigs";
 
-  private static final class ArgsMap extends HashMap<String,String> {}
+  public static final class ArgsMap extends HashMap<String,String> {
+    private static final String VERBOSE_ARG1 = "verbose";
+    private static final String VERBOSE_ARG2 = "v";
+
+    public static ArgsMap parseCommandLineArgs(String[] args, int firstArgIndex) {
+      ArgsMap map = new ArgsMap();
+
+      if (args != null && args.length > firstArgIndex) {
+        String lastArgKey = null;
+        for (int i = firstArgIndex; i < args.length; i++) {
+          String arg = args[i];
+
+          // Args can be in the form `--key value`,
+          // or (for things like boolean flags)  plainly `--key`.
+
+          // If key -> add it to the map with an empty value.
+          // Fails if the key contains non-alphabet chars.
+          // Else (is value) -> pair it with the last key seen.
+          // Fails if there has not been a key yet.
+          if (arg.startsWith("--")) {
+            lastArgKey = arg.substring(2);
+            if (!lastArgKey.matches("[a-zA-Z]+")) {
+              throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
+            }
+            map.put(lastArgKey, null);
+          } else {
+            if (lastArgKey == null || map.get(lastArgKey) != null) {
+              throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
+            }
+            map.put(lastArgKey, arg);
+          }
+        }
+      }
+
+      // Check and cache whether verbose mode is set.
+      map.isVerbose = (
+        map.containsKey(VERBOSE_ARG1) ||
+        map.containsKey(VERBOSE_ARG2)
+      );
+
+      return map;
+    }
+
+    private boolean isVerbose = false;
+    public boolean isVerbose() { return isVerbose; }
+  }
 
   private static final Map<String, Consumer<ArgsMap>> COMMANDS = new HashMap<>() {{
     // --clues %d
@@ -126,8 +166,6 @@ public class Main {
     put("buildSieveTest", Main::buildSieveTestCSV);
     put("buildjson17", Main::sudoku17ToJSON);
   }};
-
-  static boolean verbose;
 
   // private static String padLeft(String str, int length, char fillChar) {
   //   return Character.toString(fillChar).repeat(length - str.length()) + str;
@@ -327,13 +365,15 @@ Commands:
       }
     }
 
-    debug(
-      "Generated %d configs in %d ms.\n",
-      // "Generated %d configs in %d ms. %d different fps.\n",
-      numConfigs,
-      System.currentTimeMillis() - start//,
-      // fps.size()
-    );
+    if (args.isVerbose()) {
+      System.out.printf(
+        "Generated %d configs in %d ms.\n",
+        // "Generated %d configs in %d ms. %d different fps.\n",
+        numConfigs,
+        System.currentTimeMillis() - start//,
+        // fps.size()
+      );
+    }
   }
 
   // TODO Adapt for multiple threads
@@ -383,14 +423,16 @@ Commands:
     long start = System.currentTimeMillis();
     long numSolutions = 0L;
     if (numThreads == 1) {
-      debug("countSolutions(\n  grid: %s\n  numThreads: %d\n):\n", grid.toString(), numThreads);
+      if (args.isVerbose()) {
+        System.out.printf("countSolutions(\n  grid: %s\n  numThreads: %d\n):\n", grid.toString(), numThreads);
+      }
       numSolutions = grid.countSolutionsAsync(numThreads);
     } else {
 
     }
     long end = System.currentTimeMillis();
-    debug("Total: %d\n", numSolutions);
-    debug("(%d ms)\n", end - start);
+    if (args.isVerbose()) System.out.printf("Total: %d\n", numSolutions);
+    if (args.isVerbose()) System.out.printf("(%d ms)\n", end - start);
     System.out.println(numSolutions);
   }
 
@@ -409,61 +451,8 @@ Commands:
     }
   }
 
-  /**
-   * Attempts to parse command arguments from the given array.
-   * The first element is ignored as it should be the command.
-   * Commands should be invoked with the format:
-   * <code>command --argName someValue --someOtherArgWithoutValue --example 69</code>
-   *
-   * @param args
-   * @return
-   */
-  private static ArgsMap parseCommandLineArgs(String[] args) {
-    ArgsMap mapped = new ArgsMap();
-
-    if (args != null && args.length > 1) {
-      String lastArgKey = null;
-      for (int i = 1; i < args.length; i++) {
-        String arg = args[i];
-
-        // An arg can be either a key
-
-        if (arg.startsWith("--")) {
-          // This arg is a key. Add to the map with an empty value for now.
-
-          lastArgKey = arg.substring(2);
-
-          // Fail if the key contains non-alphabet chars.
-          if (!lastArgKey.matches("[a-zA-Z]+")) {
-            throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
-          }
-
-          mapped.put(lastArgKey, null);
-        } else {
-          // This arg is a value. Pair it to the last key seen.
-
-          // Fail if there has not been a key yet.
-          if (lastArgKey == null) {
-            throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
-          }
-
-          // Fail if the last key already has a value.
-          if (mapped.get(lastArgKey) != null) {
-            throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
-          }
-
-          mapped.put(lastArgKey, arg);
-        }
-      }
-    }
-
-    return mapped;
-  }
-
   public static void main(String[] args) throws IOException, ClassNotFoundException {
-    // args = new String[] { "compress", "--grid", "........1.......23..4..5........16...3......57....8.......3......96..4...1..2...." };
-    // args = new String[] { "configCompare" };
-    ArgsMap argMap = parseCommandLineArgs(args);
+    ArgsMap argsMap = ArgsMap.parseCommandLineArgs(args, 1);
 
     String command = DEFAULT_COMMAND;
     if (args != null) {
@@ -477,9 +466,7 @@ Commands:
       System.exit(1);
     }
 
-    verbose = argMap.containsKey("v");
-
-    COMMANDS.get(command).accept(argMap);
+    COMMANDS.get(command).accept(argsMap);
   }
 
   // TODO #67 Create general REPL tool
@@ -731,7 +718,7 @@ Commands:
     System.out.println(grid.toString());
     SudokuSieve sieve = new SudokuSieve(grid);
 
-    debug("Using " + numThreads + " threads.");
+    if (args.isVerbose()) System.out.println("Using " + numThreads + " threads.");
     long startTime = System.currentTimeMillis();
     sieve.seedThreaded(sieve.fullPrintCombos(level), numThreads);
     long endTime = System.currentTimeMillis();
@@ -760,7 +747,7 @@ Commands:
     String levelArg = args.get("level");
     if ("all".equals(levelArg)) { levelArg = ALL_LEVELS; }
 
-    if (verbose) {
+    if (args.isVerbose()) {
       System.out.printf("Calculating fingerprint of grid:\n%s\n", grid.toString());
     }
 
@@ -775,7 +762,7 @@ Commands:
           long start = System.currentTimeMillis();
           String fp = grid.fp(level, numThreads);
           long sysTime = System.currentTimeMillis() - start;
-          if (verbose) {
+          if (args.isVerbose()) {
             System.out.printf("fingerprint (level %d): %s (%d ms)\n", level, fp, sysTime);
           } else {
             System.out.println(fp);
@@ -791,7 +778,7 @@ Commands:
         long start = System.currentTimeMillis();
         String fp = grid.fp(level, numThreads);
         long sysTime = System.currentTimeMillis() - start;
-        if (verbose) {
+        if (args.isVerbose()) {
           System.out.printf("fingerprint (level %d): %s (%d ms)\n", level, fp, sysTime);
         } else {
           System.out.println(fp);
