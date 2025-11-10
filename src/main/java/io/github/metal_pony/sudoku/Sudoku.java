@@ -82,27 +82,84 @@ public class Sudoku {
         }
     }
 
-    public static int encode(int digit) { return ENCODER[digit]; }
-    public static int decode(int encoded) { return DECODER[encoded]; }
-    public static boolean isDigit(int encoded) { return DECODER[encoded] > 0; }
-    public static int cellRow(int ci) { return ci / DIGITS; }
-    public static int cellCol(int ci) { return ci % DIGITS; }
-    public static int cellRegion(int ci) {
-        int regionRow = ci / (RANK * DIGITS);
-        int regionCol = (ci % DIGITS) / RANK;
-        return (regionRow * RANK) + regionCol;
+    public static int encode(int digit) {
+        return ENCODER[digit];
     }
 
-    static int[] CELL_ROWS = new int[SPACES];
-    static int[] CELL_COLS = new int[SPACES];
-    static int[] CELL_REGIONS = new int[SPACES];
-    static int[][] ROW_INDICES = new int[DIGITS][DIGITS];
-    static int[][] COL_INDICES = new int[DIGITS][DIGITS];
-    static int[][] REGION_INDICES = new int[DIGITS][DIGITS];
-    static int[][] BAND_INDICES = new int[3][3*DIGITS];
-    static int[][] STACK_INDICES = new int[3][3*DIGITS];
-    static int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
-    static int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
+    public static int decode(int encoded) {
+        return DECODER[encoded];
+    }
+
+    public static boolean isDigit(int encoded) {
+        return DECODER[encoded] > 0;
+    }
+
+    /** Returns the row for the given cell by index.*/
+    public static int cellRow(int cellIndex) {
+        // return cellIndex / DIGITS;
+        return CELL_ROWS[cellIndex];
+    }
+
+    /** Returns the column for the given cell by index.*/
+    public static int cellCol(int cellIndex) {
+        // return cellIndex % DIGITS;
+        return CELL_COLS[cellIndex];
+    }
+
+    /** Returns the region for the given cell by index.*/
+    public static int cellRegion(int cellIndex) {
+        // int regionRow = cellIndex / (RANK * DIGITS);
+        // int regionCol = (cellIndex % DIGITS) / RANK;
+        // return (regionRow * RANK) + regionCol;
+        return CELL_REGIONS[cellIndex];
+    }
+
+    private static final int[] CELL_ROWS = new int[]{
+        0, 0, 0,  0, 0, 0,  0, 0, 0,
+        1, 1, 1,  1, 1, 1,  1, 1, 1,
+        2, 2, 2,  2, 2, 2,  2, 2, 2,
+
+        3, 3, 3,  3, 3, 3,  3, 3, 3,
+        4, 4, 4,  4, 4, 4,  4, 4, 4,
+        5, 5, 5,  5, 5, 5,  5, 5, 5,
+
+        6, 6, 6,  6, 6, 6,  6, 6, 6,
+        7, 7, 7,  7, 7, 7,  7, 7, 7,
+        8, 8, 8,  8, 8, 8,  8, 8, 8
+    };
+    private static final int[] CELL_COLS = new int[]{
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8
+    };
+    private static final int[] CELL_REGIONS = new int[]{
+        0, 0, 0,  1, 1, 1,  2, 2, 2,
+        0, 0, 0,  1, 1, 1,  2, 2, 2,
+        0, 0, 0,  1, 1, 1,  2, 2, 2,
+
+        3, 3, 3,  4, 4, 4,  5, 5, 5,
+        3, 3, 3,  4, 4, 4,  5, 5, 5,
+        3, 3, 3,  4, 4, 4,  5, 5, 5,
+
+        6, 6, 6,  7, 7, 7,  8, 8, 8,
+        6, 6, 6,  7, 7, 7,  8, 8, 8,
+        6, 6, 6,  7, 7, 7,  8, 8, 8
+    };
+    static final int[][] ROW_INDICES = new int[DIGITS][DIGITS];
+    static final int[][] COL_INDICES = new int[DIGITS][DIGITS];
+    static final int[][] REGION_INDICES = new int[DIGITS][DIGITS];
+    static final int[][] BAND_INDICES = new int[3][3*DIGITS];
+    static final int[][] STACK_INDICES = new int[3][3*DIGITS];
+    static final int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
+    static final int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
     static {
         int[] rowi = new int[DIGITS];
         int[] coli = new int[DIGITS];
@@ -111,9 +168,6 @@ public class Sudoku {
             int row = cellRow(i);
             int col = cellCol(i);
             int region = cellRegion(i);
-            CELL_ROWS[i] = row;
-            CELL_COLS[i] = col;
-            CELL_REGIONS[i] = region;
 
             ROW_INDICES[row][rowi[row]++] = i;
             COL_INDICES[col][coli[col]++] = i;
@@ -136,33 +190,33 @@ public class Sudoku {
     static int[][] REGION_NEIGHBORS = new int[SPACES][DIGITS - 1];
     static int[][] CELL_NEIGHBORS = new int[SPACES][3*(DIGITS-1) - (DIGITS-1)/2]; // Not checked if true for other ranks
     static {
-        for (int ci = 0; ci < SPACES; ci++) {
-            int row = cellRow(ci);
-            int col = cellCol(ci);
-            int region = cellRegion(ci);
+        for (int i = 0; i < SPACES; i++) {
+            int row = cellRow(i);
+            int col = cellCol(i);
+            int region = cellRegion(i);
 
             int ri = 0;
             int coli = 0;
             int regi = 0;
             int ni = 0;
 
-            for (int cj = 0; cj < SPACES; cj++) {
-                if (ci == cj) continue;
-                int jrow = cellRow(cj);
-                int jcol = cellCol(cj);
-                int jregion = cellRegion(cj);
+            for (int j = 0; j < SPACES; j++) {
+                if (i == j) continue;
+                int jrow = cellRow(j);
+                int jcol = cellCol(j);
+                int jregion = cellRegion(j);
 
                 if (jrow == row) {
-                    ROW_NEIGHBORS[ci][ri++] = cj;
+                    ROW_NEIGHBORS[i][ri++] = j;
                 }
                 if (jcol == col) {
-                    COL_NEIGHBORS[ci][coli++] = cj;
+                    COL_NEIGHBORS[i][coli++] = j;
                 }
                 if (jregion == region) {
-                    REGION_NEIGHBORS[ci][regi++] = cj;
+                    REGION_NEIGHBORS[i][regi++] = j;
                 }
                 if (jrow == row || jcol == col || jregion == region) {
-                    CELL_NEIGHBORS[ci][ni++] = cj;
+                    CELL_NEIGHBORS[i][ni++] = j;
                 }
             }
         }

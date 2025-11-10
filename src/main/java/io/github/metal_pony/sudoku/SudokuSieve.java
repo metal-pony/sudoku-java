@@ -205,13 +205,13 @@ public class SudokuSieve {
             SudokuMask regionMask = new SudokuMask();
 
             for (int ci = 0; ci < Sudoku.SPACES; ci++) {
-                if ((combo & (1 << Sudoku.CELL_ROWS[ci])) > 0) {
+                if ((combo & (1 << Sudoku.cellRow(ci))) > 0) {
                     rowMask.setBit(ci);
                 }
-                if ((combo & (1 << Sudoku.CELL_COLS[ci])) > 0) {
+                if ((combo & (1 << Sudoku.cellCol(ci))) > 0) {
                     colMask.setBit(ci);
                 }
-                if ((combo & (1 << Sudoku.CELL_REGIONS[ci])) > 0) {
+                if ((combo & (1 << Sudoku.cellRegion(ci))) > 0) {
                     regionMask.setBit(ci);
                 }
             }

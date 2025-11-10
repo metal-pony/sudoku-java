@@ -33,10 +33,6 @@ public class TestSudoku {
 
     @Nested
     class Static {
-        void cellRow() {}
-        void cellCol() {}
-        void cellRegion() {}
-
         void isRowFull() {}
         void cisClFull() {}
         void isRegionFull() {}
