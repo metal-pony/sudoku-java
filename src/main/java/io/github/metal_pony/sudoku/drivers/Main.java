@@ -401,8 +401,7 @@ Commands:
         clues,
         useSameSolution ? sieve : null,
         0,
-        60*1000L,
-        true
+        60*1000L
       );
       if (puzzle == null) {
         // Timed out
