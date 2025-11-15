@@ -538,6 +538,99 @@ public class TestSudoku {
     }
 
     @Test
+    void test_normalize_whenInvalid_doesNothing() {
+        Sudoku invalidPuzzle = new Sudoku(invalidPuzzles[0]);
+        int[] originalDigits = invalidPuzzle.toArray();
+        Sudoku returned = invalidPuzzle.normalize();
+        assertTrue(invalidPuzzle == returned);
+        assertEquals(invalidPuzzles[0], returned.toString());
+        assertArrayEquals(originalDigits, invalidPuzzle.toArray());
+    }
+
+    @Test
+    void test_normalize_whenSolved_reordersDigits() {
+        Sudoku solution = new Sudoku(configFixture);
+        String expectedFp2 = solution.fp2();
+
+        Sudoku returned = solution.normalize();
+        assertTrue(solution == returned);
+
+        // first 9 digits are 1-9 sequential
+        int[] digits = returned.toArray();
+        for (int i = 0; i < 9; i++) {
+            assertEquals(i + 1, digits[i]);
+        }
+
+        // isFull
+        assertTrue(returned.isFull());
+        assertTrue(Sudoku.isFull(digits));
+
+        // isValid
+        assertTrue(returned.isValid());
+        assertTrue(Sudoku.isValid(digits));
+
+        // isSolved
+        // normalize() should keep constraints in sync while swapping digits on the board.
+        assertTrue(returned.isSolved());
+        assertTrue(Sudoku.isSolved(digits));
+
+        // fingerprint should not change
+        assertEquals(expectedFp2, returned.fp2());
+
+        // subsequent normalize() should have no effect
+        String returnedStr = returned.toString();
+        Sudoku extraReturned = returned.normalize();
+        assertTrue(returned == extraReturned);
+        assertEquals(returnedStr, extraReturned.toString());
+        assertArrayEquals(digits, extraReturned.toArray());
+    }
+
+    @Test
+    void test_normalize_whenMultipleSolutions_doesNothing() {
+        for(String pStr : PUZZLESTRS_TO_NUM_SOLUTIONS.keySet()) {
+            Sudoku multiSolutionPuzz = new Sudoku(pStr);
+            int[] originalDigits = multiSolutionPuzz.toArray();
+            Sudoku returned = multiSolutionPuzz.normalize();
+            assertTrue(multiSolutionPuzz == returned);
+            assertEquals(pStr, returned.toString());
+            assertArrayEquals(originalDigits, multiSolutionPuzz.toArray());
+        }
+    }
+
+    @Test
+    void test_normalize_whenSingleSolution_reordersDigits() {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(25)) {
+            Sudoku p = new Sudoku(pStr);
+            int numEmptyCells = p.numEmptyCells();
+            int flag = p.solutionsFlag();
+            assertEquals(1, flag);
+            Sudoku solution = p.solution();
+            String fp2 = solution.fp2();
+            SudokuMask pMask = p.getMask();
+
+            Sudoku pNormal = p.normalize();
+            Sudoku solutionNormal = solution.normalize();
+            int[] pNormalDigits = pNormal.toArray();
+
+            int[] solutionNormalDigits = solutionNormal.toArray();
+            for (int i = 0; i < 9; i++) {
+                assertEquals(i + 1, solutionNormalDigits[i]);
+            }
+
+            assertEquals(solutionNormal.filterStr(pMask), pNormal.toString());
+            assertEquals(numEmptyCells, pNormal.numEmptyCells());
+            assertEquals(fp2, solutionNormal.fp2());
+            assertEquals(1, pNormal.solutionsFlag());
+            assertFalse(pNormal.isFull());
+            assertFalse(Sudoku.isFull(pNormalDigits));
+            assertTrue(pNormal.isValid());
+            assertTrue(Sudoku.isValid(pNormalDigits));
+            assertFalse(pNormal.isSolved());
+            assertFalse(Sudoku.isSolved(pNormalDigits));
+        }
+    }
+
+    @Test
     void test_searchForSolutions3_withKnownInvalidPuzzles_findsNoSolutions() {
         for (String invalidStr : invalidPuzzles) {
             Sudoku p = new Sudoku(invalidStr);

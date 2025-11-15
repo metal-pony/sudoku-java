@@ -2268,11 +2268,16 @@ public class Sudoku {
      * @return This sudoku.
      */
     public Sudoku normalize() {
-        for (int d = 1; d <= DIGITS; d++) {
-            int cellDigit = digits[d - 1];
-            if (cellDigit > 0 && cellDigit != d) {
-                swapDigits(cellDigit, d);
+        if (!isValid) return this;
+        if (isSolved()) {
+            copyFrom(normalize(ArraysUtil.copy(this.digits)));
+        } else {
+            if (solutionsFlag() != 1) return this;
+            int[] solutionDigits = normalize(solution().digits);
+            for (int i = 0; i < SPACES; i++) {
+                if (digits[i] == 0) solutionDigits[i] = 0;
             }
+            copyFrom(solutionDigits);
         }
         return this;
     }
