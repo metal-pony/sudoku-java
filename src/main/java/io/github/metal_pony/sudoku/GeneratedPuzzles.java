@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import io.github.metal_pony.sudoku.util.ArraysUtil;
+
 public class GeneratedPuzzles {
 
   public static List<Sudoku> convertStringsToBoards(String[] strs) {
@@ -24,6 +26,15 @@ public class GeneratedPuzzles {
     int index = rand.nextInt(PUZZLES_24_1000.length);
 
     return new String[] { PUZZLES_24_1000[index], SOLUTIONS[index] };
+  }
+
+  public static List<String> getRandomPuzzles(int amount) {
+    List<String> list = new ArrayList<>(1000);
+    for (String pStr : PUZZLES_24_1000) {
+      list.add(pStr);
+    }
+    ArraysUtil.shuffle(list);
+    return list.subList(0, amount);
   }
 
   public static final String[] SOLUTIONS = new String[] {
