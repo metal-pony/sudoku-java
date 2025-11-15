@@ -20,50 +20,73 @@ import java.util.function.Function;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
 
+/**
+ * A Sudoku instance manages the state of a standard 9x9 sudoku board,
+ * and provides methods for validation, manipulation, and finding solutions.
+ * There are also static utilities for generation of full sudoku and puzzles.
+ *
+ * <br><br>Want to contribute?
+ * <br><br>GitHub Repo: <a href="https://github.com/metal-pony/sudoku-java">sudoku-java</a>
+ *
+ * @author Jeff Gibson, github.com/metal-pony
+ */
 public class Sudoku {
-    static final char EMPTY_CHAR = '.';
-
     public static final int RANK = 3;
+    /** Number of digits in standard 9x9 sudoku.*/
     public static final int DIGITS = 9; // rank^2
+    /** Number of spaces or cells on a standard sudoku board.*/
     public static final int SPACES = 81; // rank^2^2
-    /** Value representing all candidates a cell may be.*/
-    static final int ALL = 511; // 2^rank^2 - 1
+    /** Represents the combination of all candidates for a cell (0x1ff).*/
+    public static final int ALL = 511; // 2^rank^2 - 1
+    /** Minumum number of clues required for a valid sudoku puzzle.*/
     public static final int MIN_CLUES = 17; // rank^2 * 2 - 1
 
+    /*
+     * Masks for working with 27-bit constraints values.
+     */
+    /** Leftmost 9 bits indicate which digits have been used within a row.*/
     static final int ROW_MASK = ALL << (DIGITS * 2);
+    /** Middle 9 bits indicate which digits have been used within a column.*/
     static final int COL_MASK = ALL << DIGITS;
+    /** Rightmost 9 bits indicate which digits have been used within a region.*/
     static final int REGION_MASK = ALL;
+    /**
+     * Combination of row, column, region constraints masks (0x7ffffff).
+     * When a cell's constraints equals this value, then that cell's row,
+     * column, and region are valid and full. If all constraints are this value,
+     * then the grid is full and valid (solved).
+     */
     static final int FULL_CONSTRAINTS = ROW_MASK | COL_MASK | REGION_MASK;
 
-    public static final int[] ENCODER = new int[] { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256 };
+    /** Maps digits (as the index) to a 9-bit encoded values.*/
+    static final int[] ENCODER = new int[] { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256 };
+    /**
+     * Maps the 9-bit encoded values (as the index) to the associated digit.
+     * NOTE: Values that represent more than one digit are mapped to 0.
+     * Powers of 2 map to digits 1 through 9.
+     */
     static final int[] DECODER = new int[1<<DIGITS];
     static {
-        for (int digit = 1; digit <= DIGITS; digit++) {
-            DECODER[1 << (digit - 1)] = digit;
-        }
+        for (int d = 1; d <= DIGITS; d++) DECODER[1 << (d - 1)] = d;
     }
 
-    /**
-     * Maps candidates mask to the array of digits it represents.
-     */
-    public static final int[][] CANDIDATES_ARR = new int[1<<DIGITS][];
+    /** Maps encoded values to the array of individual digits it represents.*/
+    static final int[][] CANDIDATES = new int[1<<DIGITS][];
 
-    /**
-     * Maps candidates masks to the array of digits (encoded) it represents.
-     */
-    static final int[][] CANDIDATES = new int[CANDIDATES_ARR.length][];
+    /** Maps encoded values to the array of individual digits (encoded) it represents.*/
+    static final int[][] CANDIDATES_ENC = new int[CANDIDATES.length][];
     static {
-        for (int val = 0; val < CANDIDATES_ARR.length; val++) {
-            CANDIDATES_ARR[val] = new int[Integer.bitCount(val)];
-            CANDIDATES[val] = new int[Integer.bitCount(val)];
-            int _val = val;
+        for (int encoded = 0; encoded < CANDIDATES.length; encoded++) {
+            CANDIDATES[encoded] = new int[Integer.bitCount(encoded)];
+            CANDIDATES_ENC[encoded] = new int[Integer.bitCount(encoded)];
+            int _val = encoded;
             int i = 0;
             int j = 0;
             int digit = 1;
             while (_val > 0) {
                 if ((_val & 1) > 0) {
-                    CANDIDATES_ARR[val][i++] = digit;
-                    CANDIDATES[val][j++] = ENCODER[digit];
+                    CANDIDATES[encoded][i++] = digit;
+                    CANDIDATES_ENC[encoded][j++] = ENCODER[digit];
                 }
                 _val >>= 1;
                 digit++;
@@ -71,15 +94,11 @@ public class Sudoku {
         }
     }
 
-    /**
-     * Maps indices [0, 511] to its bit count.
-     */
+    /** Maps indices [0, 511] to its bit count.*/
     static final int[] BIT_COUNT_MAP = new int[1<<DIGITS];
 
-    /**
-     * Digit combinations indexed by bit count (aka digit count).
-     */
-    public static final int[][] DIGIT_COMBOS_MAP = new int[DIGITS + 1][];
+    /** Digit combinations indexed by bit count (aka digit count).*/
+    static final int[][] DIGIT_COMBOS_MAP = new int[DIGITS + 1][];
     static {
         for (int nDigits = 0; nDigits < DIGIT_COMBOS_MAP.length; nDigits++) {
             DIGIT_COMBOS_MAP[nDigits] = new int[Counting.nChooseK(DIGITS, nDigits).intValueExact()];
@@ -92,36 +111,110 @@ public class Sudoku {
         }
     }
 
-    static int encode(int digit) {
+    /** Gets the 9-bit encoded value of the given digit.*/
+    public static int encode(int digit) {
         return ENCODER[digit];
     }
 
+    /**
+     * Gets the digit associated with the given 9-bit encoded value.
+     * If the encoded value represents more than one digit, returns 0.
+     */
     public static int decode(int encoded) {
         return DECODER[encoded];
     }
 
+    /**
+     * Gets whether the encoded value represents a single digit.
+     * @param encoded 9-bit encoded value.
+     * @return True if the value represents a single digit; otherwise false.
+     */
     public static boolean isDigit(int encoded) {
         return DECODER[encoded] > 0;
     }
 
-    public static int cellRow(int ci) { return ci / DIGITS; }
-    public static int cellCol(int ci) { return ci % DIGITS; }
-    public static int cellRegion(int ci) {
-        int regionRow = ci / (RANK * DIGITS);
-        int regionCol = (ci % DIGITS) / RANK;
-        return (regionRow * RANK) + regionCol;
+    /** Returns the row for the given cell by index.*/
+    public static int cellRow(int cellIndex) {
+        // return cellIndex / DIGITS;
+        return CELL_ROWS[cellIndex];
     }
 
-    public static int[] CELL_ROWS = new int[SPACES];
-    public static int[] CELL_COLS = new int[SPACES];
-    public static int[] CELL_REGIONS = new int[SPACES];
-    public static int[][] ROW_INDICES = new int[DIGITS][DIGITS];
-    public static int[][] COL_INDICES = new int[DIGITS][DIGITS];
-    public static int[][] REGION_INDICES = new int[DIGITS][DIGITS];
-    public static int[][] BAND_INDICES = new int[3][3*DIGITS];
-    public static int[][] STACK_INDICES = new int[3][3*DIGITS];
-    public static int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
-    public static int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
+    /** Returns the column for the given cell by index.*/
+    public static int cellCol(int cellIndex) {
+        // return cellIndex % DIGITS;
+        return CELL_COLS[cellIndex];
+    }
+
+    /** Returns the region for the given cell by index.*/
+    public static int cellRegion(int cellIndex) {
+        // int regionRow = cellIndex / (RANK * DIGITS);
+        // int regionCol = (cellIndex % DIGITS) / RANK;
+        // return (regionRow * RANK) + regionCol;
+        return CELL_REGIONS[cellIndex];
+    }
+
+    /** Maps cell indices to respective rows.*/
+    private static final int[] CELL_ROWS = new int[]{
+        0, 0, 0,  0, 0, 0,  0, 0, 0,
+        1, 1, 1,  1, 1, 1,  1, 1, 1,
+        2, 2, 2,  2, 2, 2,  2, 2, 2,
+
+        3, 3, 3,  3, 3, 3,  3, 3, 3,
+        4, 4, 4,  4, 4, 4,  4, 4, 4,
+        5, 5, 5,  5, 5, 5,  5, 5, 5,
+
+        6, 6, 6,  6, 6, 6,  6, 6, 6,
+        7, 7, 7,  7, 7, 7,  7, 7, 7,
+        8, 8, 8,  8, 8, 8,  8, 8, 8
+    };
+    /** Maps cell indices to respective columns.*/
+    private static final int[] CELL_COLS = new int[]{
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8,
+        0, 1, 2,  3, 4, 5,  6, 7, 8
+    };
+    /** Maps cell indices to respective regions.*/
+    private static final int[] CELL_REGIONS = new int[]{
+        0, 0, 0,  1, 1, 1,  2, 2, 2,
+        0, 0, 0,  1, 1, 1,  2, 2, 2,
+        0, 0, 0,  1, 1, 1,  2, 2, 2,
+
+        3, 3, 3,  4, 4, 4,  5, 5, 5,
+        3, 3, 3,  4, 4, 4,  5, 5, 5,
+        3, 3, 3,  4, 4, 4,  5, 5, 5,
+
+        6, 6, 6,  7, 7, 7,  8, 8, 8,
+        6, 6, 6,  7, 7, 7,  8, 8, 8,
+        6, 6, 6,  7, 7, 7,  8, 8, 8
+    };
+    /** Maps row indices to an array of cell indices (cells in the given row).*/
+    static final int[][] ROW_INDICES = new int[DIGITS][DIGITS];
+    /** Maps column indices to an array of cell indices (cells in the given column).*/
+    static final int[][] COL_INDICES = new int[DIGITS][DIGITS];
+    /** Maps region indices to an array of cell indices (cells in the given region).*/
+    static final int[][] REGION_INDICES = new int[DIGITS][DIGITS];
+    /** Maps band indices to an array of cell indices (cells in the given band).*/
+    static final int[][] BAND_INDICES = new int[3][3*DIGITS];
+    /** Maps stack indices to an array of cell indices (cells in the given stack).*/
+    static final int[][] STACK_INDICES = new int[3][3*DIGITS];
+    /**
+     * Maps row indices withing a band to an array of cell indices (cells in the given band's row).
+     * <br><br><code>BAND_ROW_INDICES[band 0-2][row 0-2] = [... cell indices]</code>
+     */
+    static final int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
+    /**
+     * Maps column indices withing a stack to an array of cell indices (cells in the given stack's column).
+     * <br><br><code>STACK_COL_INDICES[stack 0-2][col 0-2] = [... cell indices]</code>
+     */
+    static final int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
     static {
         int[] rowi = new int[DIGITS];
         int[] coli = new int[DIGITS];
@@ -130,9 +223,6 @@ public class Sudoku {
             int row = cellRow(i);
             int col = cellCol(i);
             int region = cellRegion(i);
-            CELL_ROWS[i] = row;
-            CELL_COLS[i] = col;
-            CELL_REGIONS[i] = region;
 
             ROW_INDICES[row][rowi[row]++] = i;
             COL_INDICES[col][coli[col]++] = i;
@@ -150,43 +240,53 @@ public class Sudoku {
             STACK_COL_INDICES[stack][colInStack][row] = i;
         }
     }
-    public static int[][] ROW_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    public static int[][] COL_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    public static int[][] REGION_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    public static int[][] CELL_NEIGHBORS = new int[SPACES][3*(DIGITS-1) - (DIGITS-1)/2]; // Not checked if true for other ranks
+    /** Maps cells indices to the other cell indices within the same row.*/
+    static int[][] ROW_NEIGHBORS = new int[SPACES][DIGITS - 1];
+    /** Maps cells indices to the other cell indices within the same column.*/
+    static int[][] COL_NEIGHBORS = new int[SPACES][DIGITS - 1];
+    /** Maps cells indices to the other cell indices within the same region.*/
+    static int[][] REGION_NEIGHBORS = new int[SPACES][DIGITS - 1];
+    /** Maps cells indices to all other cell indices within the same row, column, and region.*/
+    static int[][] CELL_NEIGHBORS = new int[SPACES][3*(DIGITS-1) - (DIGITS-1)/2];
     static {
-        for (int ci = 0; ci < SPACES; ci++) {
-            int row = cellRow(ci);
-            int col = cellCol(ci);
-            int region = cellRegion(ci);
+        for (int i = 0; i < SPACES; i++) {
+            int row = cellRow(i);
+            int col = cellCol(i);
+            int region = cellRegion(i);
 
             int ri = 0;
             int coli = 0;
             int regi = 0;
             int ni = 0;
 
-            for (int cj = 0; cj < SPACES; cj++) {
-                if (ci == cj) continue;
-                int jrow = cellRow(cj);
-                int jcol = cellCol(cj);
-                int jregion = cellRegion(cj);
+            for (int j = 0; j < SPACES; j++) {
+                if (i == j) continue;
+                int jrow = cellRow(j);
+                int jcol = cellCol(j);
+                int jregion = cellRegion(j);
 
                 if (jrow == row) {
-                    ROW_NEIGHBORS[ci][ri++] = cj;
+                    ROW_NEIGHBORS[i][ri++] = j;
                 }
                 if (jcol == col) {
-                    COL_NEIGHBORS[ci][coli++] = cj;
+                    COL_NEIGHBORS[i][coli++] = j;
                 }
                 if (jregion == region) {
-                    REGION_NEIGHBORS[ci][regi++] = cj;
+                    REGION_NEIGHBORS[i][regi++] = j;
                 }
                 if (jrow == row || jcol == col || jregion == region) {
-                    CELL_NEIGHBORS[ci][ni++] = cj;
+                    CELL_NEIGHBORS[i][ni++] = j;
                 }
             }
         }
     }
 
+    /**
+     * Checks whether the area of the given sudoku board is valid.
+     * @param digits Sudoku board digits.
+     * @param areaIndices Indices making up the row, column, or region.
+     * @return True if the area is valid, i.e., contains no repeated digits; otherwise false.
+     */
     private static boolean isAreaValid(int[] digits, int[] areaIndices) {
         if (digits.length != SPACES) return false;
         int digitsSeen = 0;
@@ -202,6 +302,13 @@ public class Sudoku {
         return true;
     }
 
+    /**
+     * Checks whether the area of the given sudoku board is full with digits.
+     * Does not check whether there are repeated digits.
+     * @param digits Sudoku board digits.
+     * @param areaIndices Indices making up the row, column, or region.
+     * @return True if the area is full; otherwise false.
+     */
     private static boolean isAreaFull(int[] digits, int[] areaIndices) {
         if (digits.length != SPACES) return false;
         for (int i = 0; i < DIGITS; i++) {
@@ -211,30 +318,75 @@ public class Sudoku {
         return true;
     }
 
+    /**
+     * Checks whether the given row is valid.
+     * @param digits Sudoku board digits.
+     * @param rowIndex Row to check.
+     * @return True if the row is valid, i.e., contains no repeated digits; otherwise false.
+     */
     public static boolean isRowValid(int[] digits, int rowIndex) {
         return isAreaValid(digits, ROW_INDICES[rowIndex]);
     }
 
+    /**
+     * Checks whether the given column is valid.
+     * @param digits Sudoku board digits.
+     * @param colIndex Column to check.
+     * @return True if the column is valid, i.e., contains no repeated digits; otherwise false.
+     */
     public static boolean isColValid(int[] digits, int colIndex) {
         return isAreaValid(digits, COL_INDICES[colIndex]);
     }
 
+    /**
+     * Checks whether the given region is valid.
+     * @param digits Sudoku board digits.
+     * @param regionIndex Region to check.
+     * @return True if the region is valid, i.e., contains no repeated digits; otherwise false.
+     */
     public static boolean isRegionValid(int[] digits, int regionIndex) {
         return isAreaValid(digits, REGION_INDICES[regionIndex]);
     }
 
+    /**
+     * Checks whether the given row is full of digits.
+     * Does not check whether there are repeated digits.
+     * @param digits Sudoku board digits.
+     * @param rowIndex Row to check.
+     * @return True if the row is full; otherwise false.
+     */
     public static boolean isRowFull(int[] digits, int rowIndex) {
         return isAreaFull(digits, ROW_INDICES[rowIndex]);
     }
 
+    /**
+     * Checks whether the given column is full of digits.
+     * Does not check whether there are repeated digits.
+     * @param digits Sudoku board digits.
+     * @param colIndex Column to check.
+     * @return True if the column is full; otherwise false.
+     */
     public static boolean isColFull(int[] digits, int colIndex) {
         return isAreaFull(digits, COL_INDICES[colIndex]);
     }
 
+    /**
+     * Checks whether the given region is full of digits.
+     * Does not check whether there are repeated digits.
+     * @param digits Sudoku board digits.
+     * @param regionIndex Region to check.
+     * @return True if the region is full; otherwise false.
+     */
     public static boolean isRegionFull(int[] digits, int regionIndex) {
         return isAreaFull(digits, REGION_INDICES[regionIndex]);
     }
 
+    /**
+     * Checks whether the given sudoku board is valid.
+     * @param digits Sudoku board digits.
+     * @return True if the sudoku board is valid, i.e., contains no repeated digits
+     * in any row, column, or region; otherwise false.
+     */
     public static boolean isValid(int[] digits) {
         if (digits.length != SPACES) return false;
 
@@ -266,6 +418,12 @@ public class Sudoku {
         return true;
     }
 
+    /**
+     * Checks whether the given sudoku board is full.
+     * Does not check whether there are repeated digits.
+     * @param digits Sudoku board digits.
+     * @return True if the sudoku board is full of digits; otherwise false.
+     */
     public static boolean isFull(int[] digits) {
         if (digits.length != SPACES) return false;
         for (int ci = 0; ci < DIGITS; ci++) {
@@ -274,6 +432,11 @@ public class Sudoku {
         return true;
     }
 
+    /**
+     * Checks whether the given sudoku board is solved (i.e., full and valid).
+     * @param digits Sudoku board digits.
+     * @return True if the sudoku board is solved; otherwise false.
+     */
     public static boolean isSolved(int[] digits) {
         if (digits.length != SPACES) return false;
 
@@ -305,9 +468,11 @@ public class Sudoku {
     }
 
     /**
-     * Rotates the given matrix array 90 degrees clockwise.
-     * @param arr The matrix to rotate.
+     * Rotates a given square matrix array 90 degrees clockwise.
+     * @param arr The NxN matrix to rotate, as a single array.
      * @param n Length of one of the sides.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if the array length is not n^2.
      */
     public static int[] rotate90(int[] arr, int n) {
         if (arr == null) throw new NullPointerException();
@@ -329,10 +494,11 @@ public class Sudoku {
     }
 
     /**
-     * Reflects the board values over the horizontal axis (line from bottom to top).
-     * If the `arr.length / rows` is not a whole number, an error will be thrown.
+     * Reflects a (rows x N) matrix over the horizontal axis.
      * @param arr The matrix to reflect.
      * @param rows The number of rows in the matrix.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if (array length / rows) is not a whole number.
      */
     public static int[] reflectOverHorizontal(int[] arr, int rows) {
         if (arr == null) throw new NullPointerException();
@@ -352,10 +518,11 @@ public class Sudoku {
     }
 
     /**
-     * Reflects the board values over the vertical axis (line from left to right).
-     * If the `arr.length / rows` is not a whole number, an error will be thrown.
+     * Reflects a (rows x N) matrix over the vertical axis.
      * @param arr The matrix to reflect.
      * @param rows The number of rows in the matrix.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if (array length / rows) is not a whole number.
      */
     public static int[] reflectOverVertical(int[] arr, int rows) {
         if (arr == null) throw new NullPointerException();
@@ -374,31 +541,49 @@ public class Sudoku {
         return arr;
     }
 
-    public static int[] reflectOverDiagonal(int[] arr, int rows) {
-        reflectOverVertical(arr, rows);
-        rotate90(arr, rows);
-        return arr;
-    }
-
-    public static int[] reflectOverAntiDiagonal(int[] arr, int rows) {
-        rotate90(arr, rows);
-        reflectOverVertical(arr, rows);
+    /**
+     * Reflects a given square matrix over the diagonal (line from bottomleft - topright).
+     * @param arr The NxN matrix to reflect.
+     * @param n Length of one of the sides.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if the array length is not n^2.
+     */
+    public static int[] reflectOverDiagonal(int[] arr, int n) {
+        if (arr == null) throw new NullPointerException();
+        if (n < 0) throw new IllegalArgumentException("n must be nonnegative");
+        if (arr.length != n * n) throw new IllegalArgumentException("arr length not n square");
+        reflectOverVertical(arr, n);
+        rotate90(arr, n);
         return arr;
     }
 
     /**
-     * Swaps the given bands. Bands are groups of 3 regions, horizontally.
-     * @param b1 Band index (0, 1, or 2)
-     * @param b2 Band index (0, 1, or 2) Different than b1
-     * @return This sudoku instance for convenience.
+     * Reflects a given square matrix over the anti-diagonal (line from topleft - bottomright).
+     * @param arr The NxN matrix to reflect.
+     * @param n Length of one of the sides.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if the array length is not n^2.
      */
-    public static int[] swapBands(int[] arr, int b1, int b2) {
-        if (b1 == b2) return arr;
-        if (b1 < 0 || b2 < 0 || b1 > 2 || b2 > 2)
+    public static int[] reflectOverAntiDiagonal(int[] arr, int n) {
+        rotate90(arr, n);
+        reflectOverVertical(arr, n);
+        return arr;
+    }
+
+    /**
+     * Swaps the specified bands of the sudoku array.
+     * @param arr Sudoku board array.
+     * @param bandIndexA Band index.
+     * @param bandIndexB Band index, different from A.
+     * @return The mutated sudoku board array.
+     */
+    public static int[] swapBands(int[] arr, int bandIndexA, int bandIndexB) {
+        if (bandIndexA == bandIndexB) return arr;
+        if (bandIndexA < 0 || bandIndexB < 0 || bandIndexA > 2 || bandIndexB > 2)
             throw new IllegalArgumentException("swapBands error, specified band(s) out of bounds");
         for (int i = 0; i < 27; i++) {
-            int ai = BAND_INDICES[b1][i];
-            int bi = BAND_INDICES[b2][i];
+            int ai = BAND_INDICES[bandIndexA][i];
+            int bi = BAND_INDICES[bandIndexB][i];
 
             arr[ai] ^= arr[bi];
             arr[bi] ^= arr[ai];
@@ -408,19 +593,20 @@ public class Sudoku {
     }
 
     /**
-     * Swaps the given rows within a band.
-     * @param b1 Band index (0, 1, or 2)
-     * @param ri1 Row index (0, 1, or 2)
-     * @param ri2 Row index (0, 1, or 2) Different than ri1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified rows within a band of the sudoku array.
+     * @param arr Sudoku board array.
+     * @param bandIndex Band index.
+     * @param rowA Row index.
+     * @param rowB Row index, different from A.
+     * @return The mutated sudoku board array.
      */
-    public static int[] swapBandRows(int[] arr, int bi, int ri1, int ri2) {
-        if (ri1 == ri2) return arr;
-        if (bi < 0 || bi > 2 || ri1 < 0 || ri2 < 0 || ri1 > 2 || ri2 > 2)
+    public static int[] swapBandRows(int[] arr, int bandIndex, int rowA, int rowB) {
+        if (rowA == rowB) return arr;
+        if (bandIndex < 0 || bandIndex > 2 || rowA < 0 || rowB < 0 || rowA > 2 || rowB > 2)
             throw new IllegalArgumentException("swapBandRows error, specified band or row(s) out of bounds");
         for (int i = 0; i < DIGITS; i++) {
-            int ii = BAND_ROW_INDICES[bi][ri1][i];
-            int jj = BAND_ROW_INDICES[bi][ri2][i];
+            int ii = BAND_ROW_INDICES[bandIndex][rowA][i];
+            int jj = BAND_ROW_INDICES[bandIndex][rowB][i];
 
             arr[ii] ^= arr[jj];
             arr[jj] ^= arr[ii];
@@ -430,18 +616,19 @@ public class Sudoku {
     }
 
     /**
-     * Swaps the given stacks. Stacks are groups of 3 regions, vertically.
-     * @param s1 Stack index (0, 1, or 2)
-     * @param s2 Stack index (0, 1, or 2) Different than s1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified stacks of the sudoku array.
+     * @param arr Sudoku board array.
+     * @param stackIndexA Stack index.
+     * @param stackIndexB Stack index, different from A.
+     * @return The mutated sudoku board array.
      */
-    public static int[] swapStacks(int[] arr, int s1, int s2) {
-        if (s1 == s2) return arr;
-        if (s1 < 0 || s2 < 0 || s1 > 2 || s2 > 2)
+    public static int[] swapStacks(int[] arr, int stackIndexA, int stackIndexB) {
+        if (stackIndexA == stackIndexB) return arr;
+        if (stackIndexA < 0 || stackIndexB < 0 || stackIndexA > 2 || stackIndexB > 2)
             throw new IllegalArgumentException("swapStacks error, specified stack(s) out of bounds");
         for (int i = 0; i < 27; i++) {
-            int ai = STACK_INDICES[s1][i];
-            int bi = STACK_INDICES[s2][i];
+            int ai = STACK_INDICES[stackIndexA][i];
+            int bi = STACK_INDICES[stackIndexB][i];
 
             arr[ai] ^= arr[bi];
             arr[bi] ^= arr[ai];
@@ -451,19 +638,20 @@ public class Sudoku {
     }
 
     /**
-     * Swaps the given columns within a stack.
-     * @param b1 Stack index (0, 1, or 2)
-     * @param ri1 Column index (0, 1, or 2)
-     * @param ri2 Column index (0, 1, or 2) Different than si1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified columns within a stack of the sudoku array.
+     * @param arr Sudoku board array.
+     * @param stackIndex Stack index.
+     * @param colA Column index.
+     * @param colB Column index, different from A.
+     * @return The mutated sudoku board array.
      */
-    public static int[] swapStackCols(int[] arr, int si, int ci1, int ci2) {
-        if (ci1 == ci2) return arr;
-        if (si < 0 || ci1 < 0 || ci2 < 0 || si > 2 || ci1 > 2 || ci2 > 2)
+    public static int[] swapStackCols(int[] arr, int stackIndex, int colA, int colB) {
+        if (colA == colB) return arr;
+        if (stackIndex < 0 || colA < 0 || colB < 0 || stackIndex > 2 || colA > 2 || colB > 2)
             throw new IllegalArgumentException("swapStackCols error, specified stack or col(s) out of bounds");
         for (int i = 0; i < Sudoku.DIGITS; i++) {
-            int ii = STACK_COL_INDICES[si][ci1][i];
-            int jj = STACK_COL_INDICES[si][ci2][i];
+            int ii = STACK_COL_INDICES[stackIndex][colA][i];
+            int jj = STACK_COL_INDICES[stackIndex][colB][i];
 
             arr[ii] ^= arr[jj];
             arr[jj] ^= arr[ii];
@@ -472,6 +660,14 @@ public class Sudoku {
         return arr;
     }
 
+    /**
+     * Rearranges the given sudoku board digits such that the top row
+     * reads 1 through 9 sequentially.
+     * @param digits Sudoku board digits.
+     * @return The mutated sudoku board digits.
+     * @throws IllegalArgumentException if the board is not full.
+     * TODO The board shouldn't have to be full to normalize.
+     */
     public static int[] normalize(int[] digits) {
         if (digits.length != SPACES) {
             throw new IllegalArgumentException("digits length must be 81");
@@ -503,42 +699,8 @@ public class Sudoku {
         return digits;
     }
 
-    public static int[] CANDIDATE_PAIRS = new int[36];
-    // There are (9 choose 2 = 36) pairs of digits.
-    static {
-        int i = 0;
-        for (int n = 0b11; n < ALL; n++) {
-            if (Integer.bitCount(n) == 2) {
-                CANDIDATE_PAIRS[i++] = n;
-            }
-        }
-    }
     public static boolean isCandidatePair(int n) {
         return (n > 0) && (n < ALL) && (Integer.bitCount(n) == 2);
-    }
-
-    public static final SudokuMask[] BAND_FILTERS;
-    public static final SudokuMask[] STACK_FILTERS;
-    static {
-        BAND_FILTERS = new SudokuMask[BAND_INDICES.length];
-        for (int bandIndex = 0; bandIndex < BAND_INDICES.length; bandIndex++) {
-            SudokuMask bf = new SudokuMask();
-            for (int i : BAND_INDICES[bandIndex]) {
-                bf = bf.setBit(i);
-            }
-            BAND_FILTERS[bandIndex] = bf;
-            // System.out.printf("BAND_FILTERS[%d] = %s\n", bandIndex, BAND_FILTERS[bandIndex].toString(2));
-        }
-
-        STACK_FILTERS = new SudokuMask[STACK_INDICES.length];
-        for (int stackIndex = 0; stackIndex < STACK_INDICES.length; stackIndex++) {
-            SudokuMask sf = new SudokuMask();
-            for (int i : STACK_INDICES[stackIndex]) {
-                sf = sf.setBit(SPACES - 1 - i);
-            }
-            STACK_FILTERS[stackIndex] = sf;
-            // System.out.printf("STACK_FILTERS[%d] = %s\n", stackIndex, STACK_FILTERS[stackIndex].toString(2));
-        }
     }
 
     /**
@@ -554,6 +716,16 @@ public class Sudoku {
         return conformGridStr(gridStr) != null;
     }
 
+    /**
+     * Checks that the given sudoku string is of proper length.
+     * Expands dashes '-' into 9 empty cells.
+     * Converts non-digit characters to zeroes.
+     * If this returns <code>null</code>, then the string shouldn't be used
+     * in Sudoku constructor.
+     * @param gridStr String representing a sudoku board.
+     * @return The same string, or sudoku equivalent, if the original was valid;
+     * or <code>null</code> if the string was malformed or an improper length.
+     */
     private static String conformGridStr(String gridStr) {
         // Check for NULL and fail fast if length is bad.
         if (gridStr == null || gridStr.length() > SPACES) return null;
@@ -563,6 +735,12 @@ public class Sudoku {
         return (gridStr.length() == SPACES) ? gridStr : null;
     }
 
+    /**
+     * Builds a multiline string representation of the given sudoku board,
+     * including spacing and region borders.
+     * @param digits Sudoku board digits.
+     * @return Multiline string representation of the board.
+     */
     public static String toFullString(int[] digits) {
         StringBuilder strb = new StringBuilder("  ");
         String lineSep = System.lineSeparator();
@@ -599,6 +777,12 @@ public class Sudoku {
         return strb.toString();
     }
 
+    /**
+     * Builds a multiline string representation of the given sudoku board,
+     * including region borders.
+     * @param digits Sudoku board digits.
+     * @return Multiline string representation of the board.
+     */
     public static String toMedString(int[] digits) {
         StringBuilder strb = new StringBuilder();
         String lineSep = System.lineSeparator();
@@ -631,41 +815,48 @@ public class Sudoku {
         return strb.toString();
     }
 
-    /** Cell digits, as one would see on a sudoku board.*/
+    /** Sudoku board array.*/
     int[] digits;
 
     /**
-     * Tracks a cell's possible digits, encoded in 9-bit values (one bit per possible digit).
-     *
-     * e.g., If `candidates[55] = 0b110110001`, then the cell at index `55` has the possible
-     * digits `9, 8, 6, 5, and 1`.
-     *
-     * `0b111111111` indicates that the cell can be any digit, and `0b000000000` indicates
-     * that the cell cannot be any digit (and the puzzle is likely invalid).
+     * Sudoku board array, as encoded candidates per cell.
+     * <br><br>Example: <code>candidates[55] = 0b110110001</code>.
+     * Cell 55 has possibilities <code>9, 8, 6, 5, 1</code>.
+     * <br><br>
+     * <code>0</code> indicates that the cell cannot be any digit (the puzzle may be invalid).
      */
     int[] candidates;
 
     /**
-     * Tracks the digits that have been used for each row, column, and region - combined into encoded 27-bit values.
-     *
+     * A matrix which tracks digits that have been used in each row, column, and region
+     * - encoded as 27-bit values. Index by row, column, or region.
+     * <br><br>
      * The encoding works as follows:
-     * [9 bits for the row digits][9 bits for the column][9 bits for the region]
-     *
+     * <br><br>
+     * <code>[9 bits for the row digits][9 bits for the column][9 bits for the region]</code>
+     * <br><br>
      * Some bit manipulation is required to access the values for any given area.
-     *
-     * e.g., Get the digits used by row 7: `(constraints[7] >> 18) & ALL`.
-     * This yields a 9-bit value which is an encoded form identical to `candidates`.
+     * <br><br>
+     * e.g., To retrieve the digits used by the bottom row (8): <code>(constraints[8] >> 18) & ALL</code>.
+     * This gives a 9-bit encdoded value where bits set correlate to digits used thus far in the given row.
+     * <br><br>See <code>cellConstraints(cellIndex)</code> for usage.
      */
     int[] constraints;
 
+    /** A count of the empty cells on the board.*/
     int numEmptyCells = SPACES;
 
+    /** Tracks whether the board is currently valid.*/
     boolean isValid = true;
 
     // TODO Implement isSolved cache
     // This should be cached true when isSolved is called, and invalidated whenever a value is changed
+    /** Tracks whether the board is solved.*/
     boolean isSolved = false;
 
+    /**
+     * Creates a new, empty Sudoku instance.
+     */
     public Sudoku() {
         this.digits = new int[SPACES];
         this.candidates = new int[SPACES];
@@ -673,6 +864,10 @@ public class Sudoku {
         this.constraints = new int[DIGITS];
     }
 
+    /**
+     * Creates a new Sudoku instance with data copied from <code>other</code>.
+     * @param other Another sudoku instance to copy data from.
+     */
     public Sudoku(Sudoku other) {
         this();
         this.numEmptyCells = other.numEmptyCells;
@@ -682,6 +877,14 @@ public class Sudoku {
         System.arraycopy(other.constraints, 0, this.constraints, 0, DIGITS);
     }
 
+    /**
+     * Creates a new Sudoku instance with values supplied from a string.
+     * The string may contain dashes/minuses, '-', which will be expanded into 9 empty cells.
+     * Periods are often used for empty cells, but any non-digit character will translate
+     * to an empty cell.
+     * @param gridStr A string representation of a sudoku board.
+     * @throw IllegalArgumentException if the string is malformed or of improper length.
+     */
     public Sudoku(String gridStr) {
         this();
 
@@ -698,6 +901,12 @@ public class Sudoku {
         }
     }
 
+    /**
+     * Creates a new Sudoku instance, copying the supplied digits.
+     * Only digit will be copied; other values will be empty cells.
+     * @param digits Sudoku board digits.
+     * @throws IllegalArgumentException if digits length is not exactly 81.
+     */
     public Sudoku(int[] digits) {
         this();
 
@@ -712,6 +921,7 @@ public class Sudoku {
         }
     }
 
+    /** Helper that converts byte[] representation of sudoku board into int[].*/
     private static int[] fromBytes(byte[] bytes) {
         if (bytes.length != 41) throw new IllegalArgumentException("bytes length must be 41");
         int[] _digits = new int[SPACES];
@@ -723,59 +933,130 @@ public class Sudoku {
         return _digits;
     }
 
+    /**
+     * Creates a new Sudoku instance from a given byte array.
+     * The array must be a specific length (41), as each byte will cover 2 cells.
+     * @param bytes Byte array encoding of sudoku digits.
+     * @throws IllegalArgumentException if the byte array length is not 41.
+     */
     public Sudoku(byte[] bytes) {
         this(fromBytes(bytes));
     }
 
-    public int getDigit(int ci) {
-        return digits[ci];
+    /**
+     * Get a digit.
+     * @param cellIndex
+     * @return Digit of the specified cell.
+     */
+    public int getDigit(int cellIndex) {
+        return digits[cellIndex];
     }
 
-    public int getCandidate(int ci) {
-        return candidates[ci];
+    /**
+     * Gets a copy of the board digits.
+     * @return A new array containing the board digits.
+     */
+    public int[] toArray() {
+        int[] arr = new int[SPACES];
+        System.arraycopy(digits, 0, arr, 0, SPACES);
+        return arr;
     }
 
-    public void setDigit(int ci, int digit) {
-        int prevDigit = this.digits[ci];
+    /**
+     * Get an array of candidate digits for a cell.
+     * @param cellIndex
+     * @return A new array containing candidates for the specified cell.
+     */
+    public int[] getCellCandidates(int cellIndex) {
+        return ArraysUtil.copy(CANDIDATES[candidates[cellIndex]]);
+    }
+
+    /**
+     * Gets a copy of the board as encoded board values.
+     * @return A new array containing each cell's encoded value.
+     */
+    public int[] getCandidatesEncoded() {
+        int[] arr = new int[SPACES];
+        System.arraycopy(candidates, 0, arr, 0, SPACES);
+        return arr;
+    }
+
+    /**
+     * Set the value of a cell.
+     * TODO Keep isValid, isSolved, in sync.
+     * @param cellIndex
+     * @param digit
+     */
+    public void setDigit(int cellIndex, int digit) {
+        int prevDigit = this.digits[cellIndex];
         if (prevDigit == digit) return;
 
-        digits[ci] = digit;
-        candidates[ci] = ENCODER[digit];
+        digits[cellIndex] = digit;
+        candidates[cellIndex] = ENCODER[digit];
 
         // Digit removed (or replaced)
         if (prevDigit > 0) {
             numEmptyCells++;
-            removeConstraint(ci, prevDigit);
+            removeConstraint(cellIndex, prevDigit);
         }
         // Digit added (or replaced)
         if (digit > 0) {
             numEmptyCells--;
-            addConstraint(ci, digit);
+            addConstraint(cellIndex, digit);
         }
     }
 
-    void addConstraint(int ci, int digit) {
-        int dMask = ENCODER[digit];
-        constraints[CELL_ROWS[ci]] |= dMask << (DIGITS*2);
-        constraints[CELL_COLS[ci]] |= dMask << DIGITS;
-        constraints[CELL_REGIONS[ci]] |= dMask;
+    /**
+     * Clears the value of a cell.
+     * @param cellIndex
+     */
+    public void clearCell(int cellIndex) {
+        setDigit(cellIndex, 0);
     }
 
-    void removeConstraint(int ci, int digit) {
+    /**
+     * Helper that adds a value to the constraints map.
+     * @param cellIndex
+     * @param digit
+     */
+    void addConstraint(int cellIndex, int digit) {
         int dMask = ENCODER[digit];
-        constraints[CELL_ROWS[ci]] &= ~(dMask << (DIGITS*2));
-        constraints[CELL_COLS[ci]] &= ~(dMask << DIGITS);
-        constraints[CELL_REGIONS[ci]] &= ~dMask;
+        constraints[CELL_ROWS[cellIndex]] |= dMask << (DIGITS*2);
+        constraints[CELL_COLS[cellIndex]] |= dMask << DIGITS;
+        constraints[CELL_REGIONS[cellIndex]] |= dMask;
     }
 
-    int cellConstraints(int ci) {
+    /**
+     * Helper that removes a value from the constraints map.
+     * @param cellIndex
+     * @param digit
+     */
+    void removeConstraint(int cellIndex, int digit) {
+        int dMask = ENCODER[digit];
+        constraints[CELL_ROWS[cellIndex]] &= ~(dMask << (DIGITS*2));
+        constraints[CELL_COLS[cellIndex]] &= ~(dMask << DIGITS);
+        constraints[CELL_REGIONS[cellIndex]] &= ~dMask;
+    }
+
+    /**
+     * Gets the constraints for the specified cell, indicating which digits are
+     * present in the cell's row, column, and region.
+     * @param cellIndex
+     * @return An 9-bit encoded board value indicating which digits the cell cannot be.
+     */
+    public int cellConstraints(int cellIndex) {
         return (
-            (constraints[CELL_ROWS[ci]] >> (DIGITS*2)) |
-            (constraints[CELL_COLS[ci]] >> (DIGITS)) |
-            constraints[CELL_REGIONS[ci]]
+            (constraints[CELL_ROWS[cellIndex]] >> (DIGITS*2)) |
+            (constraints[CELL_COLS[cellIndex]] >> (DIGITS)) |
+            constraints[CELL_REGIONS[cellIndex]]
         ) & ALL;
     }
 
+    /**
+     * Creates a new Sudoku instance and fills 3 non-conflicting regions randomly.
+     * Ideal for crafting random solutions, therefore referred as a solution "seed".
+     * @return A new partially-filled sudoku instance.
+     */
     public static Sudoku configSeed() {
         Sudoku seed = new Sudoku();
         int[] _digitsArr = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -788,24 +1069,17 @@ public class Sudoku {
         return seed;
     }
 
-    public int[] getBoard() {
-        int[] board = new int[SPACES];
-        System.arraycopy(digits, 0, board, 0, SPACES);
-        return board;
-    }
-
-    public int[] getCandidates() {
-        int[] board = new int[SPACES];
-        System.arraycopy(candidates, 0, board, 0, SPACES);
-        return board;
-    }
-
     //////////////////////////////////////
     ////// . . . . . . . . . . . . . . .//
     //// . . .  RESTORE POINTS . . . /////
     // . . . . . . . . . . . . . . .//////
     //////////////////////////////////////
 
+    /**
+     * Used previously to capture snapshots of a sudoku instance's state,
+     * for reloading later.
+     * TODO #36 Remove Snapshot
+     */
     private static class Snapshot {
         int[] digits = new int[SPACES];
         int[] candidates = new int[SPACES];
@@ -854,7 +1128,8 @@ public class Sudoku {
     //////////////////////////////////////
 
     /**
-     * Resets isValid, rebuilds the constraints and candidates.
+     * Resets all empty cells to full candidates, and rebuilds constraints.
+     * Used prior to searching for solutions to ensure the puzzle is in a good state.
      */
     void resetCandidatesAndValidity() {
         isValid = true;
@@ -871,22 +1146,27 @@ public class Sudoku {
         }
     }
 
+    /** Gets whether the sudoku board is full.*/
     public boolean isFull() {
         return this.numEmptyCells == 0;
     }
 
+    /** Gets whether the sudoku board is empty.*/
     public boolean isEmpty() {
         return numEmptyCells == SPACES;
     }
 
+    /** Gets the number of empty cells.*/
     public int numEmptyCells() {
         return numEmptyCells;
     }
 
+    /** Gets the number of filled-in cells.*/
     public int numClues() {
         return SPACES - numEmptyCells;
     }
 
+    /** Gets whether the sudoku board is solved (full and valid).*/
     public boolean isSolved() {
         for (int c : constraints) {
             if (c != FULL_CONSTRAINTS) {
@@ -896,14 +1176,32 @@ public class Sudoku {
         return true;
     }
 
+    /**
+     * Gets whether the sudoku board is valid, i.e., there are no rows, columns,
+     * or regions with repeated or conflicting digits.
+     */
     public boolean isValid() {
         return this.isValid;
     }
 
+    /**
+     * Attempts to fill in the board values by constraint propagation and
+     * other basic sudoku techniques.
+     * May or may not complete the board.
+     */
     public void reduce() {
         for (int i = 0; i < SPACES; i++) reduceCell(i);
     }
 
+    /**
+     * Attempts to reduce a specific cell by applying constraints,
+     * checking for a naked or hidden single, and other basic sudoku logic.
+     * <br><br>If the cell is already solved, does nothing.
+     * <br><br>If the cell reduces to 0 candidates, marks the instance as invalid.
+     * <br><br>If the cell's candidates are successfully reduced or the cell becomes
+     * solved, recursively calls <code>reduceCell()</code> for all neighboring cells.
+     * @param ci Cell index.
+     */
     void reduceCell(int ci) {
         if (digits[ci] > 0) return;
 
@@ -977,12 +1275,24 @@ public class Sudoku {
         }
     }
 
+    /**
+     * Helper method for performing a pass of constraint propagation on the entire board,
+     * similar to <code>reduce()</code>, but only constraint propagation -- not
+     * checking any other techniques.
+     *
+     * Not currently used.
+     */
     private void constraintProp() {
         for (int i = 0; i < SPACES; i++) {
             _constraintProp(i);
         }
     }
 
+    /**
+     * Helper to propagate constraints to a specific cell.
+     * Similar to <code>reduceCell()</code>.
+     * @param ci Cell index.
+     */
     private void _constraintProp(int ci) {
         if (digits[ci] > 0) {
             return;
@@ -1012,11 +1322,19 @@ public class Sudoku {
         }
     }
 
-    int getUniqueCandidate(int ci) {
-        for (int candidate : CANDIDATES[candidates[ci]]) {
+    /**
+     * Hidden single checker.
+     *
+     * Checks if the specified cell contains a candidate that is unique
+     * within its row, column, or region.
+     * @param cellIndex
+     * @return The unique candidate value (encoded); or 0 if none.
+     */
+    int getUniqueCandidate(int cellIndex) {
+        for (int candidate : CANDIDATES_ENC[candidates[cellIndex]]) {
             boolean unique = true;
-            for (int ni : ROW_NEIGHBORS[ci]) {
-                if ((candidates[ni] & candidate) > 0) {
+            for (int neighborIndex : ROW_NEIGHBORS[cellIndex]) {
+                if ((candidates[neighborIndex] & candidate) > 0) {
                     unique = false;
                     break;
                 }
@@ -1024,8 +1342,8 @@ public class Sudoku {
             if (unique) return candidate;
 
             unique = true;
-            for (int ni : COL_NEIGHBORS[ci]) {
-                if ((candidates[ni] & candidate) > 0) {
+            for (int neighborIndex : COL_NEIGHBORS[cellIndex]) {
+                if ((candidates[neighborIndex] & candidate) > 0) {
                     unique = false;
                     break;
                 }
@@ -1033,8 +1351,8 @@ public class Sudoku {
             if (unique) return candidate;
 
             unique = true;
-            for (int ni : REGION_NEIGHBORS[ci]) {
-                if ((candidates[ni] & candidate) > 0) {
+            for (int neighborIndex : REGION_NEIGHBORS[cellIndex]) {
+                if ((candidates[neighborIndex] & candidate) > 0) {
                     unique = false;
                     break;
                 }
@@ -1047,25 +1365,30 @@ public class Sudoku {
 
     /**
      * Generates a puzzle with the given number of clues.
-     * If numClues is less than the minimum 17, returns null.
-     * Generally not recommended to attempt puzzle generation with less than 20 clues.
-     * @return A new Sudoku instance (the puzzle).
+     * Not recommended to attempt puzzle generation with less than 21 clues.
+     * @return A new Sudoku puzzle instance.
+     * @throws IllegalArgumentException if numClues is less than the minimum 17.
      */
     public static Sudoku generatePuzzle(int numClues) {
-        if (numClues < MIN_CLUES) return null;
-        Sudoku grid = configSeed().solution();
-        if (numClues >= SPACES) return grid;
-        return generatePuzzle(grid, numClues, null, 0, 0L, true);
+        return generatePuzzle(generateConfig(), numClues, null, 0, 0L);
     }
 
+    /**
+     * Generates a puzzle within the given parameters, using this instance as the solution grid.
+     *
+     * @param numClues
+     * @param sieve
+     * @param difficulty
+     * @param timeoutMs
+     * @return
+     */
     public Sudoku generatePuzzle(
         int numClues,
         SudokuSieve sieve,
         int difficulty,
-        long timeoutMs,
-        boolean useSieve
+        long timeoutMs
     ) {
-        return Sudoku.generatePuzzle(this, numClues, sieve, difficulty, timeoutMs, useSieve);
+        return Sudoku.generatePuzzle(this, numClues, sieve, difficulty, timeoutMs);
     }
 
     /**
@@ -1074,24 +1397,23 @@ public class Sudoku {
      * @param grid (Optional) The solution. If provided, must be full and valid.
      * @param numClues Number of clues.
      * @param sieve A list of SudokuMask to use as a sieve of unavoidable sets.
-     * @param difficulty From 0 to 4.
+     * @param difficulty 0: ignore, 1: easy, 2: medium, 3: hard.
      * @param timeoutMs Amount of system time(ms) to spend generating. 0 for no limit.
-     * @param useSieve Whether a sieve may be seeded progressively at certain points.
-     * @return A new Sudoku instance (the puzzle); or null if the time limit is exceeded.
-     * @throws IllegalArgumentException If a populated sieve is given without a grid;
-     * if a grid is given but is invalid or not full;
-     * if difficulty is out of range.
+     * @return A new Sudoku puzzle instance; or null if the time limit is exceeded.
+     * @throws IllegalArgumentException numClues out of bounds;
+     * or sieve is given but grid is not;
+     * or grid is given but not solved;
+     * or difficulty out of bounds.
      */
     public static Sudoku generatePuzzle(
         Sudoku grid,
         int numClues,
         SudokuSieve sieve,
         int difficulty,
-        long timeoutMs,
-        boolean useSieve
+        long timeoutMs
     ) {
-        if (numClues < MIN_CLUES)
-            return null;
+        if (numClues < MIN_CLUES || numClues > SPACES)
+            throw new IllegalArgumentException("Invalid number of clues");
         if (sieve != null && grid == null)
             throw new IllegalArgumentException("Sieve provided without grid");
         if (grid == null)
@@ -1100,7 +1422,7 @@ public class Sudoku {
             throw new IllegalArgumentException("Solution grid is invalid");
         if (numClues >= SPACES)
             return grid;
-        if (difficulty < 0 || difficulty > 4)
+        if (difficulty < 0 || difficulty > 3)
             throw new IllegalArgumentException(String.format("Invalid difficulty (%d); expected 0 <= difficulty <= 4", difficulty));
         if (sieve == null)
             sieve = new SudokuSieve(grid);
@@ -1148,11 +1470,11 @@ public class Sudoku {
 
                 if (grid.filter(mask).solutionsFlag() != 1) {
                     puzzleCheckFails++;
-                    if (useSieve && puzzleCheckFails == 100 && sieve.size() < 100) {
+                    if (puzzleCheckFails == 100 && sieve.size() < 100) {
                         sieve.seedThreaded(sieve.fullPrintCombos(2));
-                    } else if (useSieve && puzzleCheckFails == 2000 && sieve.size() < 1000) {
+                    } else if (puzzleCheckFails == 2000 && sieve.size() < 1000) {
                         sieve.seedThreaded(sieve.fullPrintCombos(3));
-                    } else if (useSieve && puzzleCheckFails > 10_000 && sieve.size() < 10_000) {
+                    } else if (puzzleCheckFails > 10_000 && sieve.size() < 10_000) {
                         sieve.addFromPuzzleMask(mask);
                     }
 
@@ -1168,12 +1490,12 @@ public class Sudoku {
             // If no cells were chosen
             // - Put some cells back and try again
             if (
-            (
-                remaining.size() == numClues &&
-                difficulty > 0 &&
-                grid.filter(mask).solutionsFlag() == 1 //&&
-                // grid.filter(mask).difficulty() != difficulty
-            ) || remaining.size() == startChoices
+                (
+                    remaining.size() == numClues &&
+                    difficulty > 0 &&
+                    grid.filter(mask).solutionsFlag() == 1 //&&
+                    // grid.filter(mask).difficulty() != difficulty
+                ) || remaining.size() == startChoices
             ) {
                 int numToPutBack = 3 + rand.nextInt(3);
                 ArraysUtil.shuffle(removed);
@@ -1191,6 +1513,9 @@ public class Sudoku {
         return grid.filter(mask);
     }
 
+    /**
+     * Helper class used in the search algorithms.
+     */
     private static class SudokuNode {
         Sudoku sudoku;
         int index = -1;
@@ -1209,7 +1534,7 @@ public class Sudoku {
             if (values <= 0 || !sudoku.isValid) return null;
 
             Sudoku s = new Sudoku(sudoku);
-            int[] candidateDigits = CANDIDATES_ARR[values];
+            int[] candidateDigits = CANDIDATES[values];
             int randomCandidateDigit = candidateDigits[ThreadLocalRandom.current().nextInt(candidateDigits.length)];
             s.setDigit(index, randomCandidateDigit);
             values &= ~(ENCODER[randomCandidateDigit]);
@@ -1220,6 +1545,11 @@ public class Sudoku {
         }
     }
 
+    /**
+     * Helper class used in searchForSolutions3.
+     * Created during solution search rewrite to reduce memory footprint.
+     * (Did it work? - I don't remember!)
+     */
     private static class ANode {
         Snapshot snapshot = new Snapshot();
         int emptyCi = -1;
@@ -1242,7 +1572,7 @@ public class Sudoku {
 
             do {
                 sudoku.loadFromSnapshot(snapshot);
-                int[] candidateDigits = CANDIDATES_ARR[emptyCandidates];
+                int[] candidateDigits = CANDIDATES[emptyCandidates];
 
                 int randomCandidateDigit = candidateDigits[ThreadLocalRandom.current().nextInt(candidateDigits.length)];
                 // int randomCandidateDigit = candidateDigits[candidateDigits.length - 1];
@@ -1261,6 +1591,14 @@ public class Sudoku {
         }
     }
 
+    /**
+     * Initiates an exhaustive search for solutions. <code>solutionCallback</code> will be
+     * invoked with solutions as they are found. The callback should return <code>true</code>
+     * to continue the search, or <code>false</code> to end it.
+     * TODO rename
+     * @param solutionCallback A function which takes a solution to act upon, and returns
+     * whether or not to continue the search.
+     */
     public void searchForSolutions3(Function<Sudoku,Boolean> solutionCallback) {
         Sudoku puzz = new Sudoku(this);
         puzz.resetCandidatesAndValidity();
@@ -1300,9 +1638,9 @@ public class Sudoku {
     }
 
     /**
-     * Counts the puzzle's solution. (Synchronous DFS.)
-     * This may take a very long time if the puzzle is sparse.
-     * @return Number of solutions.
+     * Initiates an exhaustive search for solutions and returns the total.
+     * This may take awhile if the puzzle is sparse.
+     * @return Number of solutions to this sudoku.
      */
     public long countSolutions() {
         Sudoku root = new Sudoku(this);
@@ -1332,13 +1670,16 @@ public class Sudoku {
     }
 
     /**
-     * Finds all solutions to this sudoku, using the given number of threads.
-     * Blocks until all  are found, or until the specified amount of time has elapsed.
-     * @param solutionCallback Invoked with solutions as they are found.
-     * @param numThreads Number of threads to utilize.
-     * @param timeoutMs The amount of time to wait for all solutions to be found.
-     * If not positive, defaults to 1 hour.
-     * @return True if all solutions were found; otherwise false (due to timeout or interruption).
+     * Initiates an exhaustive asynchronous solutions search using the given number of threads.
+     * Continues until all solutions are found, or until the specified amount of time has elapsed.
+     * <code>solutionCallback</code> will be called asynchronously with solutions as they are found.
+     * @param solutionCallback Invoked with solutions as they are found. Multiple threads may
+     * execute the function asynchronously, so like, plan ahead for that.
+     * @param numThreads Number of threads to utilize. Not recommended to use more than
+     * the system's max.
+     * @param timeoutMs The total (system clock) time to wait for execution.
+     * If 0 or negative, defaults to 1 hour.
+     * @return True if the search is completely exhausted; otherwise false (timeout or interruption).
      */
     public boolean searchForSolutionsAsync(
         Consumer<Sudoku> solutionCallback,
@@ -1393,21 +1734,26 @@ public class Sudoku {
     }
 
     /**
-     * Finds all solutions to this sudoku, using the given number of threads.
-     * This method blocks until all solutions are found, up to 1 hour.
-     * @param solutionCallbackSync Invoked with solutions as they are found.
-     * @param numThreads Number of threads to utilize.
-     * @return True if all solutions were found; otherwise false (due to timeout or interruption).
+     * Initiates an exhaustive asynchronous solutions search using the given number of threads.
+     * Continues until all solutions are found, or until a preset 1 hour time limit has elapsed.
+     * <code>solutionCallback</code> will be called asynchronously with solutions as they are found.
+     * @param callback Invoked with solutions as they are found. Multiple threads may
+     * execute the function asynchronously, so like, plan ahead for that.
+     * @param numThreads Number of threads to utilize. Not recommended to use more than system max.
+     * @return True if the search is completely exhausted; otherwise false (timeout or interruption).
      */
     public boolean searchForSolutionsAsync(Consumer<Sudoku> callback, int numThreads) {
         return searchForSolutionsAsync(callback, numThreads, TimeUnit.HOURS.toMillis(1L));
     }
 
     /**
-     * Finds all solutions to this sudoku, using the number of threads currently available to the JVM.
-     * This method blocks until all solutions are found, up to 1 hour.
-     * @param solutionCallbackSync Invoked with solutions as they are found.
-     * @return True if all solutions were found; otherwise false (due to timeout or interruption).
+     * Initiates an exhaustive asynchronous solutions search using the maximum number of threads
+     * allowed by the system.
+     * Continues until all solutions are found, or until a preset 1 hour time limit has elapsed.
+     * <code>solutionCallback</code> will be called asynchronously with solutions as they are found.
+     * @param callback Invoked with solutions as they are found. Multiple threads may
+     * execute the function asynchronously, so like, plan ahead for that.
+     * @return True if the search is completely exhausted; otherwise false (timeout or interruption).
      */
     public boolean searchForSolutionsAsync(Consumer<Sudoku> callback) {
         int numThreads = Runtime.getRuntime().availableProcessors();
@@ -1415,12 +1761,16 @@ public class Sudoku {
     }
 
     /**
-     * Returns an iterator of all solutions, generated sequentially and on-demand.
+     * Gets an iterator of all solutions, generated sequentially on-demand.
+     * @return A Sudoku solution iterator.
      */
     public Iterable<Sudoku> solutions() {
         return new SolutionIterator(this);
     }
 
+    /**
+     * A helper class that generates a sequence of solutions for a given sudoku.
+     */
     public static class SolutionIterator implements Iterator<Sudoku>, Iterable<Sudoku> {
         Sudoku root;
         Sudoku next;
@@ -1469,8 +1819,10 @@ public class Sudoku {
     }
 
     /**
-     * Counts the number of solutions to this sudoku with the given number of threads.
-     * Even with multiple threads, a very sparse puzzle may take a long time.
+     * Initiates an exhaustive search for solutions, using the given number of threads.
+     * This may take awhile if the puzzle is sparse. Preconfigured time limit of 1 day.
+     * @param numThreads Number of threads to utilize. Not recommended to use more than system max.
+     * @return Number of solutions found.
      */
     public long countSolutionsAsync(int numThreads) {
         if (numThreads < 1) throw new IllegalArgumentException("numThreads must be positive");
@@ -1521,18 +1873,21 @@ public class Sudoku {
         return count.get();
     }
 
+    // TODO countSolutionsAsync helpers similar to searchForSolutionsAsync.
+
     /**
-     * Generates a random full Sudoku grid.
+     * Generates a random solution.
+     * @return A new, solved sudoku instance.
      */
     public static Sudoku generateConfig() {
         return configSeed().solution();
     }
 
     /**
-     * Generate a given amount of random sudoku grids.
-     * @param amount Number of grids to generate.
-     * @param list List to store the grids.
-     * @return The given list, for convenience.
+     * Generate a specified amount of random sudoku solutions.
+     * @param amount Number of solution to generate.
+     * @param list List where the solutions will be added.
+     * @return The given List.
      */
     public static List<Sudoku> generateConfigs(int amount, List<Sudoku> list) {
         for (int n = 0; n < amount; n++) {
@@ -1542,17 +1897,17 @@ public class Sudoku {
     }
 
     /**
-     * Generate a give amount of random sudoku grids.
-     * @param amount Number of grids to generate.
-     * @return A newly List containing the generated grids.
+     * Generate a specified amount of random sudoku solutions.
+     * @param amount Number of solutions to generate.
+     * @return A new List containing the generated solutions.
      */
     public static List<Sudoku> generateConfigs(int amount) {
         return generateConfigs(amount, new ArrayList<>(amount));
     }
 
     /**
-     * Searches for and returns the first solution.
-     * @return A new Sudoku instance (the solution).
+     * Initiates a search for solutions and returns the first one.
+     * @return The sudoku solution; or null if no solutions were found.
      */
     public Sudoku solution() {
         AtomicReference<Sudoku> result = new AtomicReference<>();
@@ -1563,10 +1918,19 @@ public class Sudoku {
         return result.get();
     }
 
+    /**
+     * Initiates a search for all solutions, and returns a List of results.
+     * @return A new List containing all solutions.
+     */
     public List<Sudoku> getAllSolutions() {
         return getAllSolutions(new ArrayList<>());
     }
 
+    /**
+     * Initiates a search for all solutions, collecting them in the given List.
+     * @param list List where the solutions will be added.
+     * @return The given List.
+     */
     public List<Sudoku> getAllSolutions(List<Sudoku> list) {
         searchForSolutions3(solution -> {
             list.add(solution);
@@ -1574,7 +1938,14 @@ public class Sudoku {
         });
         return list;
     }
+    // TODO does it need to be a List, or can we just use Collection.add?
 
+    /**
+     * Initiates a search for solutions, collecting them in the given List.
+     * @param amount Maximum number of solutions to collect.
+     * @param list List where the solutions will be added.
+     * @return The given List.
+     */
     public List<Sudoku> getSolutions(int amount, List<Sudoku> list) {
         searchForSolutions3(solution -> {
             list.add(solution);
@@ -1583,7 +1954,14 @@ public class Sudoku {
         return list;
     }
 
-    public void solve() {
+    // TODO getAllSolutionsAsync helpers
+
+    /**
+     * Attempts to solve this sudoku, replacing the current state with the solution.
+     * If there are multiple solutions, uses the first found.
+     * @return True if the sudoku has been solved; otherwise false (no solution).
+     */
+    public boolean solve() {
         AtomicReference<Sudoku> solution = new AtomicReference<>();
         searchForSolutions3(_solution -> {
             solution.set(_solution);
@@ -1597,55 +1975,57 @@ public class Sudoku {
             System.arraycopy(_solution.digits, 0, this.digits, 0, SPACES);
             System.arraycopy(_solution.candidates, 0, this.candidates, 0, SPACES);
             System.arraycopy(_solution.constraints, 0, this.constraints, 0, DIGITS);
+            return true;
         }
+
+        return false;
     }
 
     /**
-     * Checks whether all branches of this puzzle solve uniquely.
-     * Branches are created by filling in each cell with each of its possible candidates.
-     * TODO Not 100% confident this is working as intended.
-     * @return True if all branches of this puzzle are solvable with a unique solution.
+     * Checks whether the additive branches of this puzzle solve uniquely.
+     * If a puzzle is thought to branch additively by independently testing each
+     * candidate in each empty cell, then this method checks that each of those
+     * branches results in a puzzle that has a single, or no, solution.
+     * <br><br>If any branch has multiple solutions, then the check fails.
+     * <br><br>If the puzzle contains any cells that have no candidates,
+     * i.e. an invalid puzzle, then the check fails.
+     * <br><br>This method is useful for detecting unavoidable sets.
+     * @return True if the additive branches of this puzzle are valid sudoku.
      */
-    public boolean allBranchesSolveUniquely() {
+    public boolean doBranchesSolveUniquely() {
         for (int ci = 0; ci < SPACES; ci++) {
             int originalVal = candidates[ci];
+            // If there are no candidates for a cell, fail.
             if (originalVal == 0) return false;
             if (digits[ci] == 0) {
+                // Number of branches for cell[ci] that have a single solution.
                 int count = 0;
-                for (int candidateDigit : CANDIDATES_ARR[originalVal]) {
+                for (int candidateDigit : CANDIDATES[originalVal]) {
                     setDigit(ci, candidateDigit); // mutates constraints
                     int flag = solutionsFlag();
                     setDigit(ci, 0); // undo the constraints mutation
                     candidates[ci] = originalVal;
+                    // If a branch has multiple solutions, fail.
                     if (flag == 2) return false;
                     if (flag == 1) count++;
                 }
-                if (count < 2) return false;
+                // For each empty cell, there must be at least one branch
+                // that has a single solution.
+                // If there were no branches with solutions (all were invalid),
+                // then the puzzle was probably invalid to begin with.
+                if (count < 1) return false;
             }
         }
         return true;
     }
 
     /**
-     * Generates a copy of this sudoku with the specified digits removed.
-     * @param digitsMask A 9-bit mask representing the combination of which digits to remove, where
-     * the least significant bit represents the digit '1'.
-     */
-    public void removeDigits(int digitsMask) {
-        for (int ci = 0; ci < SPACES; ci++) {
-            if ((candidates[ci] & digitsMask) > 0) {
-                setDigit(ci, 0);
-            }
-        }
-    }
-
-    /**
-     * @return A SudokuMask where bits are set for each digit on the board.
+     * Builds a new SudokuMask where bits are set for each digit on this sudoku.
+     * @return A new SudokuMask.
      */
     public SudokuMask getMask() {
         if (isFull()) return SudokuMask.full();
         if (isEmpty()) return new SudokuMask();
-
         SudokuMask result = new SudokuMask();
         for (int ci = 0; ci < SPACES; ci++) {
             if (digits[ci] > 0) {
@@ -1656,21 +2036,32 @@ public class Sudoku {
     }
 
     /**
-     * Gets a SudokuMask where bits are set for each digit in digitsMask on the board.
-     * @param digitsMask Bitmask representing multiple digits. Same as the candidate values.
+     * Creates a SudokuMask with bits set for each digit included in the given
+     * <code>encoded</code> value.
+     * @param encoded 9-bit encoded value representing multiple digits.
      * @return A new SudokuMask with bits set for select digits on the board.
      */
-    public SudokuMask maskForDigits(int digitsMask) {
+    public SudokuMask maskForDigits(int encoded) {
         SudokuMask result = new SudokuMask();
         for (int ci = 0; ci < SPACES; ci++) {
-            if ((candidates[ci] & digitsMask) > 0) {
+            if ((candidates[ci] & encoded) > 0) {
                 result = result.setBit(ci);
             }
         }
         return result;
     }
 
-    private String fpFromSieve(int level, SudokuSieve sieve) {
+    /**
+     * Helper that takes a sieve and builds a fingerprint hash.
+     * <br><br>If level 2 is specified, then sieve items with odd numbers of cells are omitted
+     * (because there won't be any), and the string is compressed accordingly.
+     * <br><br>Example, <code>c:b:8:8:5:c::1a</code> (Whereas uncompressed would read <code>c::b::8::8::5::c::::1a</code>).
+     * <br><br>Otherwise, <code>level</code> has no other effect.
+     * @param level When <code>2</code>, indicates the hash should be compressed.
+     * @param sieve A populated SudokuSieve.
+     * @return A hash string.
+     */
+    private static String fpFromSieve(int level, SudokuSieve sieve) {
         // Track the maximum number of cells used by any unavoidable set
         // int minNumCells = SPACES;
         int maxNumCells = 0;
@@ -1699,32 +2090,100 @@ public class Sudoku {
         return String.join(":", itemsList);
     }
 
+    /**
+     * Helper to build a fingerprint hash using the digit-combos strategy with a given level.
+     * The digit-combos strategy collects sieve items by removing every combination of {level}
+     * digits from the board, and checking all solutions for unavoidable sets (items) to add.
+     * This means the minimum level is 2 (to remove every combination of 2 digits),
+     * and that each subsequent level is a significant jump in processing power.
+     * Not recommended above level 4.
+     * @param level The level of detail (and processing power) used to process and build
+     * the fingerprint. Every combination of {level} digits will be removed from the board and
+     * solutions collected and checked for unavoidable sets to add to a sieve.
+     * @return A hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     private String dc(int level) {
-        SudokuSieve sieve = new SudokuSieve(getBoard());
+        SudokuSieve sieve = new SudokuSieve(toArray());
         sieve.seed(sieve.digitCombos(level));
         return fpFromSieve(level, sieve);
     }
 
-    private String ac(int level) {
-        SudokuSieve sieve = new SudokuSieve(getBoard());
-        sieve.seed(sieve.areaCombos(level));
-        return fpFromSieve(level, sieve);
-    }
-
+    /**
+     * Computes this solution's fingerprint by the digit-combos strategy (level 2).
+     * @return The hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String dc2() { return dc(2); }
+
+    /**
+     * Computes this solution's fingerprint by the digit-combos strategy (level 3).
+     * @return The hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String dc3() { return dc(3); }
+
+    /**
+     * Computes this solution's fingerprint by the digit-combos strategy (level 4).
+     * @return The hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String dc4() { return dc(4); }
 
-    public String ac2() { return ac(2); }
-    public String ac3() { return ac(3); }
-    public String ac4() { return ac(4); }
-
+    /**
+     * Computes this solution's fingerprint by the full-print strategy (level 2).
+     * @return The hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String fp2() { return fp(2); }
+
+    /**
+     * Computes this solution's fingerprint by the full-print strategy (level 3).
+     * @return The hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String fp3() { return fp(3); }
+
+    /**
+     * Computes this solution's fingerprint by the full-print strategy (level 4).
+     * @return The hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String fp4() { return fp(4); }
+
+    /**
+     * Helper to build a fingerprint hash using the full-print strategy with a given level.
+     * <br><br>The full-print strategy extends digit-combos, in that it collects sieve items by
+     * removing every combination of {level} digits from the board and checking solutions,
+     * and in addition also tries every combination of areas removed from the board, i.e.
+     * every combination of {level} rows, columns, and regions are removed and solutions
+     * checked for unavoidable sets.
+     * <br><br>This collects more sieve items and increases the uniqueness of the fingerprint, as
+     * opposed to checking only digit-combos, but adds slightly more processing overhead. And the
+     * fingerprint is still guaranteed to remain the same regardless of how the board is transformed.
+     * <br><br>Not recommended above level 4.
+     * @param level The level of detail (and processing power) used to process and build
+     * the fingerprint. Every combination of {level} digits and areas will be removed from the board and
+     * solutions collected and checked for unavoidable sets to add to a sieve.
+     * @return A hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String fp(int level) { return fp(level, 1); }
+
+    /**
+     * Helper to build a fingerprint hash using the full-print strategy with a given level,
+     * using the specified number of threads.
+     * <br><br>See {@link Sudoku#fp(int level)} for more info on full-print strategy.
+     * <br><br>Not recommended above level 4.
+     * @param level The level of detail (and processing power) used to process and build
+     * the fingerprint. Every combination of {level} digits and areas will be removed from the board and
+     * solutions collected and checked for unavoidable sets to add to a sieve.
+     * @param numThreads Number of threads to use.
+     * @return A hash string.
+     * @throws IllegalArgumentException if this grid is not solved.
+     */
     public String fp(int level, int numThreads) {
-        SudokuSieve sieve = new SudokuSieve(getBoard());
+        SudokuSieve sieve = new SudokuSieve(toArray());
         if (numThreads == 1) {
             sieve.seed(sieve.fullPrintCombos(level));
         } else {
@@ -1734,23 +2193,22 @@ public class Sudoku {
     }
 
     /***********************************************
-     *
-     * Transformations
+     * TRANSFORMATIONS
      *
      * The following transformations are symmetry-preserving,
      * i.e. they do not change the number of solutions.
      * Transformed grids will retain the same fingerprint.
      *
      * After any transformation, 'constraints' may be out of sync
-     * and require reseting via 'resetConstraints()'.
+     * and require reseting via 'resetCandidatesAndValidity()'.
      ***********************************************/
 
     /**
-     * Swaps all of digit 'a' on the board with digit 'b'.
-     * Does nothing if digits are the same, either are negative,
-     * or either are a number greater than 9.
-     * @param a 1 through 9
-     * @param b 1 through 9
+     * Swaps all of digit {a} on the board with digit {b}.
+     * Does nothing if digits are the same, or it either are out of bounds.
+     * TODO Ensure constraints are kept in sync.
+     * @param a Digit to swap {b} with.
+     * @param b Digit to swap {a} with.
      */
     public void swapDigits(int a, int b) {
         if (a == b) return;
@@ -1766,9 +2224,11 @@ public class Sudoku {
     }
 
     /**
-     * Rearranges the board digits so the top row is sequential.
-     * Empty top row cells are skipped.
-     * @return This sudoku instance for convenience.
+     * Rearranges the board digits such that the top row is sequential, 1 through 9.
+     * If the grid is not solved, or does not have a unique solution,
+     * then this has no effect.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
      */
     public Sudoku normalize() {
         for (int d = 1; d <= DIGITS; d++) {
@@ -1781,11 +2241,14 @@ public class Sudoku {
     }
 
     /**
-     * Rotates the board clockwise the given number of turns, up to 3.
+     * Rotates the board clockwise the given number of turns.
+     * TODO Ensure constraints are kept in sync.
      * @param turns Number of times to rotate the board.
-     * @return This sudoku instance for convenience.
+     * @return This sudoku.
      */
     public Sudoku rotate(int turns) {
+        // Normalize turns to be within [0, 3]
+        turns = ((turns % 4) + 4) % 4;
         for (int t = 0; t < turns; t++) {
             rotate90(candidates, DIGITS);
             rotate90(digits, DIGITS);
@@ -1795,7 +2258,8 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the horizontal.
-     * @return This sudoku instance for convenience.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
      */
     public Sudoku reflectHorizontal() {
         reflectOverHorizontal(candidates, DIGITS);
@@ -1805,7 +2269,8 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the vertical.
-     * @return This sudoku instance for convenience.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
      */
     public Sudoku reflectVertical() {
         reflectOverVertical(candidates, DIGITS);
@@ -1815,7 +2280,8 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the diagonal.
-     * @return This sudoku instance for convenience.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
      */
     public Sudoku reflectDiagonal() {
         reflectOverDiagonal(candidates, DIGITS);
@@ -1825,7 +2291,8 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the antidiagonal.
-     * @return This sudoku instance for convenience.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
      */
     public Sudoku reflectAntiDiagonal() {
         reflectOverAntiDiagonal(candidates, DIGITS);
@@ -1834,66 +2301,72 @@ public class Sudoku {
     }
 
     /**
-     * Swaps the given bands. Bands are groups of 3 regions, horizontally.
-     * @param b1 Band index (0, 1, or 2)
-     * @param b2 Band index (0, 1, or 2) Different than b1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified bands.
+     * TODO Ensure constraints are kept in sync.
+     * @param bandIndexA Band index (0, 1, or 2).
+     * @param bandIndexB Band index, different than A.
+     * @return This sudoku.
      */
-    public Sudoku swapBands(int b1, int b2) {
-        swapBands(candidates, b1, b2);
-        swapBands(digits, b1, b2);
+    public Sudoku swapBands(int bandIndexA, int bandIndexB) {
+        swapBands(candidates, bandIndexA, bandIndexB);
+        swapBands(digits, bandIndexA, bandIndexB);
         return this;
     }
 
     /**
-     * Swaps the given rows within a band.
-     * @param b1 Band index (0, 1, or 2)
-     * @param ri1 Row index (0, 1, or 2)
-     * @param ri2 Row index (0, 1, or 2) Different than ri1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified rows within a band.
+     * TODO Ensure constraints are kept in sync.
+     * @param bandIndex Band index (0, 1, or 2).
+     * @param rowA Row index (0, 1, or 2).
+     * @param rowB Row index , different than A.
+     * @return This sudoku.
      */
-    public Sudoku swapBandRows(int bi, int ri1, int ri2) {
-        swapBandRows(candidates, bi, ri1, ri2);
-        swapBandRows(digits, bi, ri1, ri2);
+    public Sudoku swapBandRows(int bandIndex, int rowA, int rowB) {
+        swapBandRows(candidates, bandIndex, rowA, rowB);
+        swapBandRows(digits, bandIndex, rowA, rowB);
         return this;
     }
 
     /**
-     * Swaps the given stacks. Stacks are groups of 3 regions, vertically.
-     * @param s1 Stack index (0, 1, or 2)
-     * @param s2 Stack index (0, 1, or 2) Different than s1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified stacks.
+     * TODO Ensure constraints are kept in sync.
+     * @param stackIndexA Stack index (0, 1, or 2).
+     * @param stackIndexB Stack index, different than A.
+     * @return This sudoku.
      */
-    public Sudoku swapStacks(int s1, int s2) {
-        swapStacks(candidates, s1, s2);
-        swapStacks(digits, s1, s2);
+    public Sudoku swapStacks(int stackIndexA, int stackIndexB) {
+        swapStacks(candidates, stackIndexA, stackIndexB);
+        swapStacks(digits, stackIndexA, stackIndexB);
         return this;
     }
 
     /**
-     * Swaps the given columns within a stack.
-     * @param b1 Stack index (0, 1, or 2)
-     * @param ri1 Column index (0, 1, or 2)
-     * @param ri2 Column index (0, 1, or 2) Different than si1
-     * @return This sudoku instance for convenience.
+     * Swaps the specified columns within a stack.
+     * TODO Ensure constraints are kept in sync.
+     * @param stackIndex Stack index (0, 1, or 2).
+     * @param colA Column index (0, 1, or 2).
+     * @param colB Column index , different than A.
+     * @return This sudoku.
      */
-    public Sudoku swapStackCols(int si, int ci1, int ci2) {
-        swapStackCols(candidates, si, ci1, ci2);
-        swapStackCols(digits, si, ci1, ci2);
+    public Sudoku swapStackCols(int stackIndex, int colA, int colB) {
+        swapStackCols(candidates, stackIndex, colA, colB);
+        swapStackCols(digits, stackIndex, colA, colB);
         return this;
     }
 
+    /**
+     * Scrambles the sudoku via symmetry-preserving transformations. Afterwards, the
+     * board will look completely different, but will still be essentially the same.
+     * TODO Ensure constraints are kept in sync.
+     * @return
+     */
     public Sudoku scramble() {
         rotate(ThreadLocalRandom.current().nextInt(4));
 
-        int[] digits = new int[9];
-        for (int d = 1; d <= 9; d++)
-            digits[d - 1] = d;
-        ArraysUtil.shuffle(digits);
-        for (int d = 1; d <= 9; d++)
-            swapDigits(d, digits[d - 1]);
+        randomizeDigits();
 
         List<Runnable> transforms = new ArrayList<>(){{
+            add(() -> rotate(1));
             add(() -> swapBands(0, 1));
             add(() -> swapBands(0, 2));
             add(() -> swapBands(1, 2));
@@ -1906,6 +2379,7 @@ public class Sudoku {
             add(() -> swapBandRows(2, 0, 1));
             add(() -> swapBandRows(2, 0, 2));
             add(() -> swapBandRows(2, 1, 2));
+            add(() -> rotate(2));
             add(() -> swapStacks(0, 1));
             add(() -> swapStacks(0, 2));
             add(() -> swapStacks(1, 2));
@@ -1918,29 +2392,53 @@ public class Sudoku {
             add(() -> swapStackCols(2, 0, 1));
             add(() -> swapStackCols(2, 0, 2));
             add(() -> swapStackCols(2, 1, 2));
-            add(() -> reflectHorizontal());
-            add(() -> reflectVertical());
-            add(() -> reflectDiagonal());
-            add(() -> reflectAntiDiagonal());
-        }};
-        for (int t = 0; t < 137; t++)
-            transforms.get(ThreadLocalRandom.current().nextInt(28)).run();
+            add(() -> rotate(3));
 
+            // These can be achieved through combinations of the above transforms.
+            // add(() -> reflectHorizontal());
+            // add(() -> reflectVertical());
+            // add(() -> reflectDiagonal());
+            // add(() -> reflectAntiDiagonal());
+        }};
+
+        final int nTransforms = transforms.size();
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
+        for (int t = 0; t < 137; t++) {
+            transforms.get(rand.nextInt(nTransforms)).run();
+        }
+
+        return this;
+    }
+
+    /**
+     * Randomly swaps combinations of digits on the board.
+     * Afterwards, the grid will be essentially the same, just with different numbers.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
+     */
+    public Sudoku randomizeDigits() {
+        int[] digits = new int[9];
+        for (int d = 1; d <= 9; d++) {
+            digits[d - 1] = d;
+        }
+        ArraysUtil.shuffle(digits);
+        for (int d = 1; d <= 9; d++) {
+            swapDigits(d, digits[d - 1]);
+        }
         return this;
     }
 
     // End transformations
 
     /**
-     * Filters this sudoku grid with the given mask.
+     * Filters this grid with the given mask.
      * @param mask A mask indicating which digits to keep in the result.
-     * @return A new Sudoku instance with filtered board values.
+     * @return A new Sudoku with filtered board values.
      */
     public Sudoku filter(SudokuMask mask) {
-        // Throw if this is not full grid
         Sudoku result = new Sudoku();
         for (int ci = 0; ci < SPACES; ci++) {
-            if (mask.testBit(ci)) {
+            if (mask.testBit(ci) && digits[ci] > 0) {
                 result.setDigit(ci, digits[ci]);
             }
         }
@@ -1948,40 +2446,27 @@ public class Sudoku {
     }
 
     /**
-     * Gets a string representation of this board filtered through the given mask.
+     * Gets a string representation of this grid filtered through the given mask.
      * @param mask A mask indicating which digits to keep in the result.
-     * @return A new Sudoku instance with filtered board values.
+     * @return A new Sudoku with filtered board values.
      */
     public String filterStr(SudokuMask mask) {
-        StringBuilder strb = new StringBuilder();
+        char[] strb = new char[SPACES];
         for (int ci = 0; ci < SPACES; ci++) {
-            if (mask.testBit(ci)) {
-                strb.append(digits[ci]);
-            } else {
-                strb.append('.');
-            }
+            strb[ci] = (mask.testBit(ci) && digits[ci] > 0) ? (char)('0' + digits[ci]) : '.';
         }
-        return strb.toString();
+        return new String(strb);
     }
 
     /**
-     * Gets a mask indicating differences between this sudoku board and the one given.
-     * @param other Another sudoku board to compare to.
-     * @return A new SudokuMask where 1s indicate a difference between boards.
+     * Gets a mask indicating differences between this sudoku and the one given.
+     * @param other Another sudoku.
+     * @return A new SudokuMask where bits set indicate a difference between boards.
      */
-    public SudokuMask diff2(Sudoku other) {
-        return diff2(other.digits);
-    }
-
-    /**
-     * Gets a mask indicating differences between this sudoku board and the one given.
-     * @param otherBoardDigits Another sudoku board to compare to.
-     * @return A new SudokuMask where 1s indicate a difference between boards.
-     */
-    public SudokuMask diff2(int[] otherBoardDigits) {
+    public SudokuMask diffMask(Sudoku other) {
         SudokuMask result = new SudokuMask();
         for (int i = 0; i < SPACES; i++) {
-            if (digits[i] != otherBoardDigits[i]) {
+            if (digits[i] != other.digits[i]) {
                result.setBit(i);
             }
         }
@@ -1989,12 +2474,14 @@ public class Sudoku {
     }
 
     /**
-     * Gets a flag indicating information about the sudoku's number of solutions.
+     * Gets a flag indicating the grid's number of solutions.
      * <ul>
      * <li>0 -> No solutions</li>
      * <li>1 -> Single solution</li>
      * <li>2 -> Multiple solutions</li>
      * </ul>
+     * NOTE: This method includes the overhead of solving the grid, but fails fast
+     * as soon as 2 solutions are found.
      */
     public int solutionsFlag() {
         if (!isValid) return 0;
@@ -2024,14 +2511,14 @@ public class Sudoku {
      * @param endIndex Ending cell index of the range to check (exclusive).
      * @return Index of an empty cell, or -1 if no empty cells exist.
      */
-    // Hoisting this list up here actually runs slightly slower...
+    // Hoisting this list up actually performs slightly slower, and I'm not sure why...
     // private List<Integer> _minimums = new ArrayList<>();
     public int pickEmptyCell(int startIndex, int endIndex) {
-        if (numEmptyCells == 0) {
-            return  -1;
-        }
+        if (numEmptyCells == 0) return -1;
+        if (numEmptyCells == SPACES) return ThreadLocalRandom.current().nextInt(SPACES);
 
         int min = DIGITS + 1;
+        // TODO Compare performance when using int[81] instead of ArrayList
         List<Integer> _minimums = new ArrayList<>();
         for (int ci = startIndex; ci < endIndex; ci++) {
             if (digits[ci] == 0) {
@@ -2054,35 +2541,42 @@ public class Sudoku {
         // return _minimums.get(RandomGenerator.getDefault().nextInt(_minimums.size()));
     }
 
+    /**
+     * Builds a string 81 character length representation of this sudoku.
+     * Empty cells will be indicated by a dot (<code>.</code>).
+     */
     @Override
     public String toString() {
-        StringBuilder strb = new StringBuilder();
-        for (int d : this.digits) {
-            strb.append((d > 0) ? (char)('0' + d) : '.');
+        char[] chars = new char[SPACES];
+        for (int i = 0; i < SPACES; i++) {
+            chars[i] = (digits[i] > 0) ? (char)('0' + digits[i]) : '.';
         }
-        return strb.toString();
+        return new String(chars);
     }
 
     /**
-     * @return A multi-line string representation of the puzzle.
+     * Builds a multiline string representation of this sudoku,
+     * including spacing and region borders.
+     * @return Multiline string representation of the board.
      */
     public String toFullString() {
         return toFullString(digits);
     }
 
     /**
-     * @return A multi-line string representation of the puzzle.
+     * Builds a multiline string representation of this sudoku, including region borders.
+     * @return Multiline string representation of the board.
      */
     public String toMedString() {
         return toMedString(digits);
     }
 
     /**
-     * Export this sudoku digits as 41 bytes.
+     * Builds a byte array representation of this sudoku.
      * For use with <code>new Sudoku(bytesArr)</code>.
-     * @return A byte array containing this sudoku's digit information.
+     * @return A 41-length byte array containing this sudoku's digit information.
      */
-    public byte[] toBytes() {
+    public byte[] toByteArray() {
         if (numEmptyCells == SPACES) return new byte[41];
 
         int len = 41;

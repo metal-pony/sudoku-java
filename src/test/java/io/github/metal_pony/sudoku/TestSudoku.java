@@ -33,10 +33,6 @@ public class TestSudoku {
 
     @Nested
     class Static {
-        void cellRow() {}
-        void cellCol() {}
-        void cellRegion() {}
-
         void isRowFull() {}
         void cisClFull() {}
         void isRegionFull() {}
@@ -272,25 +268,27 @@ public class TestSudoku {
         @Test
         void generatePuzzle_whenSieveHasItems_butGridNull_throws() {
             assertThrows(IllegalArgumentException.class, () -> {
-                Sudoku.generatePuzzle(null, 27, new SudokuSieve(Sudoku.generateConfig()), 0, 0L, true);
+                Sudoku.generatePuzzle(null, 27, new SudokuSieve(Sudoku.generateConfig()), 0, 0L);
             });
         }
 
         @Test
-        void generatePuzzle_whenNumCluesLessThanMin_returnsNull() {
+        void generatePuzzle_whenNumCluesLessThanMin_throws() {
             for (int clues = 16; clues > -100; clues--) {
-                assertNull(
-                    Sudoku.generatePuzzle(null, clues, null, 0, 0L, true)
-                );
+                final int _clues = clues;
+                assertThrows(IllegalArgumentException.class, () -> {
+                    Sudoku.generatePuzzle(null, _clues, null, 0, 0L);
+                });
             }
         }
 
         @Test
-        void generatePuzzles_whenNumCluesMoreThanSpaces_returnsFullGrid() {
+        void generatePuzzles_whenNumCluesMoreThanSpaces_throws() {
             for (int clues = 82; clues < 100; clues++) {
-                Sudoku p = Sudoku.generatePuzzle(null, clues, null, 0, 0L, true);
-                assertTrue(p.isFull());
-                assertEquals(0, p.numEmptyCells());
+                final int _clues = clues;
+                assertThrows(IllegalArgumentException.class, () -> {
+                    Sudoku.generatePuzzle(null, _clues, null, 0, 0L);
+                });
             }
         }
 
@@ -299,7 +297,7 @@ public class TestSudoku {
             assertThrows(IllegalArgumentException.class, () -> {
                 Sudoku.generatePuzzle(
                     new Sudoku("999999999648937152957182364435279618296813475781645293364798521812564937579321846"),
-                    27, null, 0, 0L, true
+                    27, null, 0, 0L
                 );
             });
         }
@@ -310,7 +308,7 @@ public class TestSudoku {
             for (int invalidDiff : invalidDiffs) {
                 final int _invalidDiff = invalidDiff;
                 assertThrows(IllegalArgumentException.class, () -> {
-                    Sudoku.generatePuzzle(null, 27, null, _invalidDiff, 0L, true);
+                    Sudoku.generatePuzzle(null, 27, null, _invalidDiff, 0L);
                 });
             }
         }
@@ -320,7 +318,7 @@ public class TestSudoku {
             for (int clues = 81; clues >= 24; clues--) {
                 for (int t = 0; t < 10; t++) {
                     Sudoku p = Sudoku.generatePuzzle(clues);
-                    int[] board = p.getBoard();
+                    int[] board = p.toArray();
 
                     // Validity
                     assertTrue(Sudoku.isValid(board));
@@ -351,9 +349,6 @@ public class TestSudoku {
         {"dc2", "9:9:7:4:2:3::16"},
         {"dc3", "9::f::f:1:11:5:f:5:f:c:f:9:3d:e:16:25:21:8:8"},
         // {"dc4", "9::f::18:6:3b:16:43:2b:75:63:9c:a8:14a:139:1b6:29c:352:3cc:49b:460:4a4:350:251:14e:6a:21:1"},
-        {"ac2", "9:6:4:9:1:4::6"},
-        {"ac3", "9::f::11:5:2a:8:2c:3:2e:8:12:b:30:6:11:7:1"},
-        // {"ac4", "9::f::18:6:4f:1e:7e:43:d2:75:f5:d0:138:ff:18f:11c:15e:10a:f4:b7:72:3d:17:a:4:1"},
         {"fp2", "9:f:b:d:3:7::1c"},
         {"fp3", "9::f::18:6:3b:d:3b:8:3d:14:21:14:6d:14:27:2c:22:8:8"},
         // {"fp4", "9::f::18:6:53:23:9b:65:13b:d8:191:178:282:238:345:3b8:4b0:4d6:58f:517:516:38d:268:158:6e:22:1"},
@@ -396,7 +391,7 @@ public class TestSudoku {
     @BeforeEach
     void before() {
         configFixture = new Sudoku(configFixtureStr);
-        configFixtureSieve = new SudokuSieve(configFixture.getBoard());
+        configFixtureSieve = new SudokuSieve(configFixture.toArray());
         puzzleFixture = new Sudoku(puzzleFixtureStr);
         puzzleSolutions = copyPuzzleFixtureSolutions();
         Arrays.sort(puzzleSolutions);
@@ -482,7 +477,7 @@ public class TestSudoku {
         for (PuzzleEntry pEntry : sudoku17) {
             Sudoku p1 = pEntry.puzzle();
 
-            byte[] bytes = p1.toBytes();
+            byte[] bytes = p1.toByteArray();
             Sudoku p2 = new Sudoku(bytes);
 
             assertEquals(p1.toString(), p2.toString());
@@ -986,20 +981,20 @@ public class TestSudoku {
     @Test
     void toAndFromBytes() {
         Sudoku s = new Sudoku();
-        int[] sBoard = s.getBoard();
-        Sudoku rehydratedS = new Sudoku(s.toBytes());
-        assertArrayEquals(sBoard, rehydratedS.getBoard());
+        int[] sBoard = s.toArray();
+        Sudoku rehydratedS = new Sudoku(s.toByteArray());
+        assertArrayEquals(sBoard, rehydratedS.toArray());
 
         s = Sudoku.configSeed().solution();
-        sBoard = s.getBoard();
-        rehydratedS = new Sudoku(s.toBytes());
-        assertArrayEquals(sBoard, rehydratedS.getBoard());
+        sBoard = s.toArray();
+        rehydratedS = new Sudoku(s.toByteArray());
+        assertArrayEquals(sBoard, rehydratedS.toArray());
 
         for (String pStr : GeneratedPuzzles.PUZZLES_24_1000) {
             s = new Sudoku(pStr);
-            sBoard = s.getBoard();
-            rehydratedS = new Sudoku(s.toBytes());
-            assertArrayEquals(sBoard, rehydratedS.getBoard());
+            sBoard = s.toArray();
+            rehydratedS = new Sudoku(s.toByteArray());
+            assertArrayEquals(sBoard, rehydratedS.toArray());
         }
     }
 

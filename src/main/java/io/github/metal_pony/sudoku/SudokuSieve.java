@@ -38,7 +38,7 @@ public class SudokuSieve {
             throw new IllegalArgumentException("could not create sieve for malformed grid");
         }
 
-        this.board = config.getBoard();
+        this.board = config.toArray();
         this._config = new Sudoku(this.board);
         this._itemGroupsByBitCount = new ArrayList<>(Sudoku.SPACES + 1);
         for (int n = 0; n <= Sudoku.SPACES; n++) {
@@ -205,13 +205,13 @@ public class SudokuSieve {
             SudokuMask regionMask = new SudokuMask();
 
             for (int ci = 0; ci < Sudoku.SPACES; ci++) {
-                if ((combo & (1 << Sudoku.CELL_ROWS[ci])) > 0) {
+                if ((combo & (1 << Sudoku.cellRow(ci))) > 0) {
                     rowMask.setBit(ci);
                 }
-                if ((combo & (1 << Sudoku.CELL_COLS[ci])) > 0) {
+                if ((combo & (1 << Sudoku.cellCol(ci))) > 0) {
                     colMask.setBit(ci);
                 }
-                if ((combo & (1 << Sudoku.CELL_REGIONS[ci])) > 0) {
+                if ((combo & (1 << Sudoku.cellRegion(ci))) > 0) {
                     regionMask.setBit(ci);
                 }
             }
@@ -228,7 +228,7 @@ public class SudokuSieve {
         if (level < 2 || level > 4) throw new IllegalArgumentException("Invalid level");
 
         List<SudokuMask> combos = new ArrayList<>();
-        int[] board = _config.getBoard();
+        int[] board = _config.toArray();
         for (int combo : Sudoku.DIGIT_COMBOS_MAP[level]) {
             SudokuMask digMask = new SudokuMask();
 
@@ -282,7 +282,7 @@ public class SudokuSieve {
     public boolean validate(SudokuMask mask) {
         return _config.filter(
             new SudokuMask(mask.toString()).flip()
-        ).allBranchesSolveUniquely();
+        ).doBranchesSolveUniquely();
     }
 
     /**
@@ -375,7 +375,7 @@ public class SudokuSieve {
     public int addFromFilter(SudokuMask mask) {
         AtomicInteger numAdded = new AtomicInteger();
         _config.filter(mask.flip()).searchForSolutions3(solution -> {
-            SudokuMask diff = _config.diff2(solution);
+            SudokuMask diff = _config.diffMask(solution);
             if (
                 diff.bitCount() > 0 &&
                 !isDerivative(diff) &&
@@ -392,7 +392,7 @@ public class SudokuSieve {
     public int addFromPuzzleMask(SudokuMask mask) {
         AtomicInteger numAdded = new AtomicInteger();
         _config.filter(mask).searchForSolutions3(solution -> {
-            SudokuMask diff = _config.diff2(solution);
+            SudokuMask diff = _config.diffMask(solution);
             if (
                 diff.bitCount() > 0 &&
                 !isDerivative(diff) &&

@@ -66,11 +66,6 @@ public class Main {
     }
   }
 
-  private static void debug(String msg) { debug(msg, (Object[]) null); }
-  private static void debug(String msg, Object... args) {
-    if (verbose) System.out.printf(msg, args);
-  }
-
   private static final int MAX_THREADS = Runtime.getRuntime().availableProcessors();
 
   static final String RESOURCES_DIR = "resources";
@@ -95,7 +90,52 @@ public class Main {
 
   public static final String DEFAULT_COMMAND = "generateConfigs";
 
-  private static final class ArgsMap extends HashMap<String,String> {}
+  public static final class ArgsMap extends HashMap<String,String> {
+    private static final String VERBOSE_ARG1 = "verbose";
+    private static final String VERBOSE_ARG2 = "v";
+
+    public static ArgsMap parseCommandLineArgs(String[] args, int firstArgIndex) {
+      ArgsMap map = new ArgsMap();
+
+      if (args != null && args.length > firstArgIndex) {
+        String lastArgKey = null;
+        for (int i = firstArgIndex; i < args.length; i++) {
+          String arg = args[i];
+
+          // Args can be in the form `--key value`,
+          // or (for things like boolean flags)  plainly `--key`.
+
+          // If key -> add it to the map with an empty value.
+          // Fails if the key contains non-alphabet chars.
+          // Else (is value) -> pair it with the last key seen.
+          // Fails if there has not been a key yet.
+          if (arg.startsWith("--")) {
+            lastArgKey = arg.substring(2);
+            if (!lastArgKey.matches("[a-zA-Z]+")) {
+              throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
+            }
+            map.put(lastArgKey, null);
+          } else {
+            if (lastArgKey == null || map.get(lastArgKey) != null) {
+              throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
+            }
+            map.put(lastArgKey, arg);
+          }
+        }
+      }
+
+      // Check and cache whether verbose mode is set.
+      map.isVerbose = (
+        map.containsKey(VERBOSE_ARG1) ||
+        map.containsKey(VERBOSE_ARG2)
+      );
+
+      return map;
+    }
+
+    private boolean isVerbose = false;
+    public boolean isVerbose() { return isVerbose; }
+  }
 
   private static final Map<String, Consumer<ArgsMap>> COMMANDS = new HashMap<>() {{
     // --clues %d
@@ -108,7 +148,7 @@ public class Main {
     put("countSolutions", Main::countSolutions);
     // --puzzle %s --threads %d --timeout %d
     put("solve", Main::solve);
-    put("generateBands", Main::generateInitialBands);
+    put("generateBands", GenerateInitialBands::generateInitialBands);
     // --level %d --grid %s --threads %d
     put("sieve", Main::createSieve);
     // --level %d --grid %s --threads %d
@@ -126,8 +166,6 @@ public class Main {
     put("buildSieveTest", Main::buildSieveTestCSV);
     put("buildjson17", Main::sudoku17ToJSON);
   }};
-
-  static boolean verbose;
 
   // private static String padLeft(String str, int length, char fillChar) {
   //   return Character.toString(fillChar).repeat(length - str.length()) + str;
@@ -327,13 +365,15 @@ Commands:
       }
     }
 
-    debug(
-      "Generated %d configs in %d ms.\n",
-      // "Generated %d configs in %d ms. %d different fps.\n",
-      numConfigs,
-      System.currentTimeMillis() - start//,
-      // fps.size()
-    );
+    if (args.isVerbose()) {
+      System.out.printf(
+        "Generated %d configs in %d ms.\n",
+        // "Generated %d configs in %d ms. %d different fps.\n",
+        numConfigs,
+        System.currentTimeMillis() - start//,
+        // fps.size()
+      );
+    }
   }
 
   // TODO Adapt for multiple threads
@@ -361,8 +401,7 @@ Commands:
         clues,
         useSameSolution ? sieve : null,
         0,
-        60*1000L,
-        true
+        60*1000L
       );
       if (puzzle == null) {
         // Timed out
@@ -383,14 +422,16 @@ Commands:
     long start = System.currentTimeMillis();
     long numSolutions = 0L;
     if (numThreads == 1) {
-      debug("countSolutions(\n  grid: %s\n  numThreads: %d\n):\n", grid.toString(), numThreads);
+      if (args.isVerbose()) {
+        System.out.printf("countSolutions(\n  grid: %s\n  numThreads: %d\n):\n", grid.toString(), numThreads);
+      }
       numSolutions = grid.countSolutionsAsync(numThreads);
     } else {
 
     }
     long end = System.currentTimeMillis();
-    debug("Total: %d\n", numSolutions);
-    debug("(%d ms)\n", end - start);
+    if (args.isVerbose()) System.out.printf("Total: %d\n", numSolutions);
+    if (args.isVerbose()) System.out.printf("(%d ms)\n", end - start);
     System.out.println(numSolutions);
   }
 
@@ -409,61 +450,8 @@ Commands:
     }
   }
 
-  /**
-   * Attempts to parse command arguments from the given array.
-   * The first element is ignored as it should be the command.
-   * Commands should be invoked with the format:
-   * <code>command --argName someValue --someOtherArgWithoutValue --example 69</code>
-   *
-   * @param args
-   * @return
-   */
-  private static ArgsMap parseCommandLineArgs(String[] args) {
-    ArgsMap mapped = new ArgsMap();
-
-    if (args != null && args.length > 1) {
-      String lastArgKey = null;
-      for (int i = 1; i < args.length; i++) {
-        String arg = args[i];
-
-        // An arg can be either a key
-
-        if (arg.startsWith("--")) {
-          // This arg is a key. Add to the map with an empty value for now.
-
-          lastArgKey = arg.substring(2);
-
-          // Fail if the key contains non-alphabet chars.
-          if (!lastArgKey.matches("[a-zA-Z]+")) {
-            throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
-          }
-
-          mapped.put(lastArgKey, null);
-        } else {
-          // This arg is a value. Pair it to the last key seen.
-
-          // Fail if there has not been a key yet.
-          if (lastArgKey == null) {
-            throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
-          }
-
-          // Fail if the last key already has a value.
-          if (mapped.get(lastArgKey) != null) {
-            throw new IllegalArgumentException("Invalid argument format: " + String.join(" ", args));
-          }
-
-          mapped.put(lastArgKey, arg);
-        }
-      }
-    }
-
-    return mapped;
-  }
-
   public static void main(String[] args) throws IOException, ClassNotFoundException {
-    // args = new String[] { "compress", "--grid", "........1.......23..4..5........16...3......57....8.......3......96..4...1..2...." };
-    // args = new String[] { "configCompare" };
-    ArgsMap argMap = parseCommandLineArgs(args);
+    ArgsMap argsMap = ArgsMap.parseCommandLineArgs(args, 1);
 
     String command = DEFAULT_COMMAND;
     if (args != null) {
@@ -477,9 +465,7 @@ Commands:
       System.exit(1);
     }
 
-    verbose = argMap.containsKey("v");
-
-    COMMANDS.get(command).accept(argMap);
+    COMMANDS.get(command).accept(argsMap);
   }
 
   // TODO #67 Create general REPL tool
@@ -502,213 +488,12 @@ Commands:
   //   scanner.close();
   // }
 
-  private static long timeCpuExecution(Runnable runnable) {
+  static long timeCpuExecution(Runnable runnable) {
     ThreadMXBean bean = ManagementFactory.getThreadMXBean();
     long start = bean.getCurrentThreadCpuTime();
     runnable.run();
     long end = bean.getCurrentThreadCpuTime();
     return end - start;
-  }
-
-  static class Node2 {
-    Sudoku sudoku;
-    int index = -1;
-    int values = -1;
-    public Node2(Sudoku sudoku) {
-      this.sudoku = sudoku;
-      sudoku.reduce();
-      index = sudoku.pickEmptyCell(0, 27);
-      if (index != -1) {
-        values = sudoku.getCandidate(index);
-      }
-    }
-    public Node2 next() {
-      if (values <= 0) {
-          return null;
-      }
-      Sudoku s = new Sudoku(sudoku);
-      int d = Sudoku.CANDIDATES_ARR[values][0];
-      s.setDigit(index, d);
-      values &= ~(Sudoku.ENCODER[d]);
-      return new Node2(s);
-    }
-  }
-
-  public static void generateInitialBands(ArgsMap args) {
-    Set<String> fullBandSet = new HashSet<>();
-    final int N = Sudoku.DIGITS * 3;
-    long time = timeCpuExecution(() -> {
-      Sudoku root = new Sudoku("123456789--------");
-
-      // TODO Ensure that this script works properly without needing to call reset.
-      // root.resetCandidatesAndValidity();
-
-      Stack<Node2> q = new Stack<>();
-      q.push(new Node2(root));
-
-      while (!q.isEmpty()) {
-        Node2 top = q.peek();
-        Node2 next = top.next();
-        if (next == null) {
-          boolean hasEmptyInBand = top.sudoku.pickEmptyCell(0, N) >= 0;
-          if (!hasEmptyInBand) {
-            String bandStr = top.sudoku.toString().substring(0, N);
-            if (fullBandSet.add(bandStr)) {
-              if (verbose) {
-                System.out.println(bandStr);
-              }
-            }
-          }
-          q.pop();
-        } else {
-          q.push(next);
-        }
-      }
-    });
-
-    if (verbose) {
-      System.out.printf(
-        " -- found %d initial bands in %s ms --\n",
-        fullBandSet.size(),
-        TimeUnit.NANOSECONDS.toMillis(time)
-      );
-      System.out.println("Reducing bands...");
-    }
-
-    long startTime = System.currentTimeMillis();
-    Set<String> reducedBandSet = reduceFullBandSet(fullBandSet);
-    long endTime = System.currentTimeMillis();
-    if (verbose) {
-      System.out.printf(" -- reduced bands to %d in %d ms --\n", reducedBandSet.size(), (endTime - startTime));
-    }
-    reducedBandSet.forEach(System.out::println);
-  }
-
-  public static Set<String> reduceFullBandSet(Set<String> fullBandSet) {
-    // TODO Reduce fullBandSet by discovering and removing transforms
-    // For each BAND:
-    //  new queue, new hashset<string> to track seen elements, add BAND
-    //  while queue not empty:
-    //    b = poll
-    //    // always normalize after transform, before adding to queue
-    //    add unseen block permutations to queue,
-    //    add unseen row permutations to queue,
-    //    add unseen column permutations to queue,
-    //    band -> config -> search for UAs(level 2? 3?) -> when found, if (bandMask & ua) == ua -> if unseen, add to queue
-
-    List<String> allBands = new ArrayList<>(fullBandSet);
-    HashSet<String> reducedBands = new HashSet<>();
-    final int N = Sudoku.DIGITS * 3;
-
-    while (!allBands.isEmpty()) {
-      String band = allBands.remove(allBands.size() - 1);
-      // String bandPuzzleStr = band + "0".repeat(Sudoku.SPACES - band.length());
-      // Sudoku bandPuzzle = new Sudoku(bandPuzzleStr);
-      HashSet<String> seen = new HashSet<>();
-      Queue<String> q = new LinkedList<>();
-      seen.add(band);
-      q.offer(band);
-      reducedBands.add(band);
-
-      // TODO NOT FEASIBLE TO COUNT SOLUTIONS
-      // int rootCount = countSolutions(new Sudoku(band + "0".repeat(Sudoku.SPACES - band.length())));
-      // if (verbose) {
-      //   System.out.printf("Transforming band %s, all transforms should have %d solutions:\n", band, rootCount);
-      // }
-
-      while (!q.isEmpty()) {
-        String bStr = q.poll() + "0".repeat(Sudoku.SPACES - band.length());
-
-        // Transforms
-        Sudoku[] transforms = new Sudoku[] {
-          new Sudoku(bStr).swapStacks(1, 2),
-          new Sudoku(bStr).swapStacks(0, 1),
-          new Sudoku(bStr).swapStacks(0, 1).swapStacks(1, 2),
-          new Sudoku(bStr).swapStacks(0, 2).swapStacks(1, 2),
-          new Sudoku(bStr).swapStacks(0, 2),
-
-          new Sudoku(bStr).swapBandRows(0, 1, 2),
-          new Sudoku(bStr).swapBandRows(0, 0, 1),
-          new Sudoku(bStr).swapBandRows(0, 0, 1).swapBandRows(0, 1, 2),
-          new Sudoku(bStr).swapBandRows(0, 0, 2).swapBandRows(0, 1, 2),
-          new Sudoku(bStr).swapBandRows(0, 0, 2),
-
-          new Sudoku(bStr).swapStackCols(0, 1, 2),
-          new Sudoku(bStr).swapStackCols(0, 0, 1),
-          new Sudoku(bStr).swapStackCols(0, 0, 1).swapStackCols(0, 1, 2),
-          new Sudoku(bStr).swapStackCols(0, 0, 2).swapStackCols(0, 1, 2),
-          new Sudoku(bStr).swapStackCols(0, 0, 2),
-
-          new Sudoku(bStr).swapStackCols(1, 1, 2),
-          new Sudoku(bStr).swapStackCols(1, 0, 1),
-          new Sudoku(bStr).swapStackCols(1, 0, 1).swapStackCols(1, 1, 2),
-          new Sudoku(bStr).swapStackCols(1, 0, 2).swapStackCols(1, 1, 2),
-          new Sudoku(bStr).swapStackCols(1, 0, 2),
-
-          new Sudoku(bStr).swapStackCols(2, 1, 2),
-          new Sudoku(bStr).swapStackCols(2, 0, 1),
-          new Sudoku(bStr).swapStackCols(2, 0, 1).swapStackCols(2, 1, 2),
-          new Sudoku(bStr).swapStackCols(2, 0, 2).swapStackCols(2, 1, 2),
-          new Sudoku(bStr).swapStackCols(2, 0, 2)
-        };
-
-        for (Sudoku t : transforms) {
-          String tStr = t.normalize().toString().substring(0, N);
-          if (!seen.contains(tStr)) {
-            seen.add(tStr);
-            q.offer(tStr);
-
-            // TODO NOT FEASIBLE TO COUNT SOLUTIONS
-            // int count = countSolutions(new Sudoku(tStr));
-            // if (verbose) {
-            //   System.out.printf("%s [%d] %s\n", (rootCount == count) ? "  " : "🚨", count, tStr);
-            // }
-          }
-        }
-
-        // TODO Additional symmetries can be found by locating UAs within the band
-
-        // AtomicReference<Sudoku> atomicConfig = new AtomicReference<>();
-        // bandPuzzle.searchForSolutions3(solution -> {
-        //   atomicConfig.set(solution);
-        //   return false;
-        // });
-        // Sudoku c = atomicConfig.get();
-        // SudokuSieve sieve = new SudokuSieve(c.getBoard());
-        // BigInteger bandMask = new BigInteger("1".repeat(N) + "0".repeat(Sudoku.SPACES - N), 2);
-        // for (int r = Sudoku.DIGIT_COMBOS_MAP[2].length - 1; r >= 0; r--) {
-        //   BigInteger pMask = c.maskForDigits(Sudoku.DIGIT_COMBOS_MAP[2][r]);
-        //   sieve.addFromFilter(pMask, (solution) -> {
-        //     // TODO item may need to be inverted
-        //     BigInteger item = c.diff2(solution);
-        //     if (item.equals(item.and(bandMask))) {
-        //       String tStr = solution.normalize().toString().substring(0, N);
-        //       if (!seen.contains(tStr)) {
-        //         seen.add(tStr);
-        //         q.offer(tStr);
-        //       }
-        //     }
-        //   });
-        // }
-      }
-
-      int sizeBefore = allBands.size();
-      allBands.removeAll(seen);
-      int sizeAfter = allBands.size();
-      if (verbose) {
-        System.out.printf("Removed %d permuted bands, (%d remaining).\n", sizeBefore - sizeAfter, allBands.size());
-      }
-    }
-
-    if (verbose) {
-      System.out.printf(
-        "Done.\nRemoved %d permuted bands in total.\nReduced band set size: %d.\n",
-        fullBandSet.size() - reducedBands.size(),
-        reducedBands.size()
-      );
-    }
-
-    return reducedBands;
   }
 
   /**
@@ -731,7 +516,7 @@ Commands:
     System.out.println(grid.toString());
     SudokuSieve sieve = new SudokuSieve(grid);
 
-    debug("Using " + numThreads + " threads.");
+    if (args.isVerbose()) System.out.println("Using " + numThreads + " threads.");
     long startTime = System.currentTimeMillis();
     sieve.seedThreaded(sieve.fullPrintCombos(level), numThreads);
     long endTime = System.currentTimeMillis();
@@ -760,7 +545,7 @@ Commands:
     String levelArg = args.get("level");
     if ("all".equals(levelArg)) { levelArg = ALL_LEVELS; }
 
-    if (verbose) {
+    if (args.isVerbose()) {
       System.out.printf("Calculating fingerprint of grid:\n%s\n", grid.toString());
     }
 
@@ -775,7 +560,7 @@ Commands:
           long start = System.currentTimeMillis();
           String fp = grid.fp(level, numThreads);
           long sysTime = System.currentTimeMillis() - start;
-          if (verbose) {
+          if (args.isVerbose()) {
             System.out.printf("fingerprint (level %d): %s (%d ms)\n", level, fp, sysTime);
           } else {
             System.out.println(fp);
@@ -791,7 +576,7 @@ Commands:
         long start = System.currentTimeMillis();
         String fp = grid.fp(level, numThreads);
         long sysTime = System.currentTimeMillis() - start;
-        if (verbose) {
+        if (args.isVerbose()) {
           System.out.printf("fingerprint (level %d): %s (%d ms)\n", level, fp, sysTime);
         } else {
           System.out.println(fp);
