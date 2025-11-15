@@ -2363,12 +2363,7 @@ public class Sudoku {
     public Sudoku scramble() {
         rotate(ThreadLocalRandom.current().nextInt(4));
 
-        int[] digits = new int[9];
-        for (int d = 1; d <= 9; d++)
-            digits[d - 1] = d;
-        ArraysUtil.shuffle(digits);
-        for (int d = 1; d <= 9; d++)
-            swapDigits(d, digits[d - 1]);
+        randomizeDigits();
 
         List<Runnable> transforms = new ArrayList<>(){{
             add(() -> rotate(1));
@@ -2412,6 +2407,24 @@ public class Sudoku {
             transforms.get(rand.nextInt(nTransforms)).run();
         }
 
+        return this;
+    }
+
+    /**
+     * Randomly swaps combinations of digits on the board.
+     * Afterwards, the grid will be essentially the same, just with different numbers.
+     * TODO Ensure constraints are kept in sync.
+     * @return This sudoku.
+     */
+    public Sudoku randomizeDigits() {
+        int[] digits = new int[9];
+        for (int d = 1; d <= 9; d++) {
+            digits[d - 1] = d;
+        }
+        ArraysUtil.shuffle(digits);
+        for (int d = 1; d <= 9; d++) {
+            swapDigits(d, digits[d - 1]);
+        }
         return this;
     }
 
