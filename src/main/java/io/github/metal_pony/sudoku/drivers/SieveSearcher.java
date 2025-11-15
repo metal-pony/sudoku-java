@@ -284,7 +284,7 @@ class SieveSearcher {
 
               final long _sieveSize = sieveSize;
               grid.filter(mask).searchForSolutions3(solution -> {
-                SudokuMask diff = grid.diff2(solution);
+                SudokuMask diff = grid.diffMask(solution);
                 if (sieve.add(diff)) {
                   itemsIndices.put(diff, ArraysUtil.shuffle(diff.toIndices()));
                   System.out.printf("[%d] + %s\n", _sieveSize + 1, grid.filterStr(diff));

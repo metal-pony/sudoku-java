@@ -2463,19 +2463,10 @@ public class Sudoku {
      * @param other Another sudoku.
      * @return A new SudokuMask where bits set indicate a difference between boards.
      */
-    public SudokuMask diff2(Sudoku other) {
-        return diff2(other.digits);
-    }
-
-    /**
-     * Gets a mask indicating differences between this sudoku board and the one given.
-     * @param otherBoardDigits Another sudoku board to compare to.
-     * @return A new SudokuMask where 1s indicate a difference between boards.
-     */
-    public SudokuMask diff2(int[] otherBoardDigits) {
+    public SudokuMask diffMask(Sudoku other) {
         SudokuMask result = new SudokuMask();
         for (int i = 0; i < SPACES; i++) {
-            if (digits[i] != otherBoardDigits[i]) {
+            if (digits[i] != other.digits[i]) {
                result.setBit(i);
             }
         }
