@@ -96,9 +96,6 @@ public class PuzzleEntry {
     public String dc2() { return (dc2 == null) ? (dc2 = solution().dc2()) : dc2; }
     public String dc3() { return (dc3 == null) ? (dc3 = solution().dc3()) : dc3; }
     public String dc4() { return (dc4 == null) ? (dc4 = solution().dc4()) : dc4; }
-    public String ac2() { return (ac2 == null) ? (ac2 = solution().ac2()) : ac2; }
-    public String ac3() { return (ac3 == null) ? (ac3 = solution().ac3()) : ac3; }
-    public String ac4() { return (ac4 == null) ? (ac4 = solution().ac4()) : ac4; }
     public String fp2() { return (fp2 == null) ? (fp2 = solution().fp2()) : fp2; }
     public String fp3() { return (fp3 == null) ? (fp3 = solution().fp3()) : fp3; }
     public String fp4() { return (fp4 == null) ? (fp4 = solution().fp4()) : fp4; }
