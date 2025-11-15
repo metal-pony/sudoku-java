@@ -865,16 +865,12 @@ public class Sudoku {
     }
 
     /**
-     * Creates a new Sudoku instance with data copied from <code>other</code>.
-     * @param other Another sudoku instance to copy data from.
+     * Creates a new Sudoku instance with state copied from <code>other</code>.
+     * @param other Another sudoku instance.
      */
     public Sudoku(Sudoku other) {
         this();
-        this.numEmptyCells = other.numEmptyCells;
-        this.isValid = other.isValid;
-        System.arraycopy(other.digits, 0, this.digits, 0, SPACES);
-        System.arraycopy(other.candidates, 0, this.candidates, 0, SPACES);
-        System.arraycopy(other.constraints, 0, this.constraints, 0, DIGITS);
+        copyFrom(other);
     }
 
     /**
@@ -909,16 +905,7 @@ public class Sudoku {
      */
     public Sudoku(int[] digits) {
         this();
-
-        if (digits.length != SPACES) {
-            throw new IllegalArgumentException("sudoku initialization failed: insufficient board values");
-        }
-
-        for (int ci = 0; ci < SPACES; ci++) {
-            if (digits[ci] > 0 || digits[ci] <= DIGITS) {
-                setDigit(ci, digits[ci]);
-            }
-        }
+        copyFrom(digits);
     }
 
     /** Helper that converts byte[] representation of sudoku board into int[].*/
@@ -941,6 +928,56 @@ public class Sudoku {
      */
     public Sudoku(byte[] bytes) {
         this(fromBytes(bytes));
+    }
+
+    /**
+     * Resets the instance to an empty board.
+     */
+    public void reset() {
+        this.numEmptyCells = SPACES;
+        this.isSolved = false;
+        this.isValid = true;
+        Arrays.fill(this.candidates, ALL);
+        Arrays.fill(this.digits, 0);
+        Arrays.fill(this.constraints, 0);
+    }
+
+    /**
+     * Overwrites the state of this instance with that of the one given.
+     * @param other Another Sudoku instance.
+     */
+    public void copyFrom(Sudoku other) {
+        this.numEmptyCells = other.numEmptyCells;
+        this.isSolved = other.isSolved;
+        this.isValid = other.isValid;
+        System.arraycopy(other.digits, 0, this.digits, 0, SPACES);
+        System.arraycopy(other.candidates, 0, this.candidates, 0, SPACES);
+        System.arraycopy(other.constraints, 0, this.constraints, 0, DIGITS);
+    }
+
+    /**
+     * Overwrites the state of this instance with the given sudoku array.
+     * @param digits Sudoku board digits.
+     */
+    public void copyFrom(int[] digits) {
+        if (digits.length != SPACES) {
+            throw new IllegalArgumentException("digits array has bad length");
+        }
+
+        this.numEmptyCells = SPACES;
+        this.isSolved = false;
+        this.isValid = true;
+
+        Arrays.fill(this.candidates, ALL);
+        Arrays.fill(this.digits, 0);
+        Arrays.fill(this.constraints, 0);
+
+        for (int ci = 0; ci < SPACES; ci++) {
+            int d = digits[ci];
+            if (d > 0 && d <= DIGITS) {
+                setDigit(ci, d);
+            }
+        }
     }
 
     /**
