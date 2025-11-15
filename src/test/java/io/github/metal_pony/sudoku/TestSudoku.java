@@ -477,7 +477,7 @@ public class TestSudoku {
         for (PuzzleEntry pEntry : sudoku17) {
             Sudoku p1 = pEntry.puzzle();
 
-            byte[] bytes = p1.toBytes();
+            byte[] bytes = p1.toByteArray();
             Sudoku p2 = new Sudoku(bytes);
 
             assertEquals(p1.toString(), p2.toString());
@@ -982,18 +982,18 @@ public class TestSudoku {
     void toAndFromBytes() {
         Sudoku s = new Sudoku();
         int[] sBoard = s.toArray();
-        Sudoku rehydratedS = new Sudoku(s.toBytes());
+        Sudoku rehydratedS = new Sudoku(s.toByteArray());
         assertArrayEquals(sBoard, rehydratedS.toArray());
 
         s = Sudoku.configSeed().solution();
         sBoard = s.toArray();
-        rehydratedS = new Sudoku(s.toBytes());
+        rehydratedS = new Sudoku(s.toByteArray());
         assertArrayEquals(sBoard, rehydratedS.toArray());
 
         for (String pStr : GeneratedPuzzles.PUZZLES_24_1000) {
             s = new Sudoku(pStr);
             sBoard = s.toArray();
-            rehydratedS = new Sudoku(s.toBytes());
+            rehydratedS = new Sudoku(s.toByteArray());
             assertArrayEquals(sBoard, rehydratedS.toArray());
         }
     }

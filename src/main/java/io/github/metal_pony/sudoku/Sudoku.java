@@ -2585,7 +2585,7 @@ public class Sudoku {
      * For use with <code>new Sudoku(bytesArr)</code>.
      * @return A 41-length byte array containing this sudoku's digit information.
      */
-    public byte[] toBytes() {
+    public byte[] toByteArray() {
         if (numEmptyCells == SPACES) return new byte[41];
 
         int len = 41;
