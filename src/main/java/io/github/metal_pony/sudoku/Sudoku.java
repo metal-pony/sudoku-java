@@ -1106,64 +1106,6 @@ public class Sudoku {
         return seed;
     }
 
-    //////////////////////////////////////
-    ////// . . . . . . . . . . . . . . .//
-    //// . . .  RESTORE POINTS . . . /////
-    // . . . . . . . . . . . . . . .//////
-    //////////////////////////////////////
-
-    /**
-     * Used previously to capture snapshots of a sudoku instance's state,
-     * for reloading later.
-     * TODO #36 Remove Snapshot
-     */
-    private static class Snapshot {
-        int[] digits = new int[SPACES];
-        int[] candidates = new int[SPACES];
-        int[] constraints = new int[DIGITS];
-        int numEmptyCells = SPACES;
-        boolean isValid = true;
-
-        Snapshot() {}
-        Snapshot(Sudoku sudoku) { set(sudoku); }
-
-        void set(Sudoku sudoku) {
-            for (int i = 0; i < SPACES; i++) {
-                this.digits[i] = sudoku.digits[i];
-                this.candidates[i] = sudoku.candidates[i];
-            }
-            for (int i = 0; i < DIGITS; i++) this.constraints[i] = sudoku.constraints[i];
-            this.numEmptyCells = sudoku.numEmptyCells;
-            this.isValid = sudoku.isValid;
-        }
-    }
-
-    /**
-     * Creates a Snapshot of the current state which can be used as a restore point.
-     */
-    public Snapshot snapshot() {
-        return new Snapshot(this);
-    }
-
-    /**
-     * Copies the snapshot data into this Sudoku instance.
-     * <br></br>
-     * ⚠️ instance state will be overwritten.
-     * @param data Snapshot to copy data from.
-     */
-    public void loadFromSnapshot(Snapshot data) {
-        for (int i = 0; i < SPACES; i++) {
-            this.digits[i] = data.digits[i];
-            this.candidates[i] = data.candidates[i];
-        }
-        for (int i = 0; i < DIGITS; i++) this.constraints[i] = data.constraints[i];
-        this.numEmptyCells = data.numEmptyCells;
-        this.isValid = data.isValid;
-    }
-
-    //////////////////////////////////////
-    //////////////////////////////////////
-
     /**
      * Resets all empty cells to full candidates, and rebuilds constraints.
      * Used prior to searching for solutions to ensure the puzzle is in a good state.
@@ -1588,14 +1530,14 @@ public class Sudoku {
      * (Did it work? - I don't remember!)
      */
     private static class ANode {
-        Snapshot snapshot = new Snapshot();
+        Sudoku snapshot = new Sudoku();
         int emptyCi = -1;
         int emptyCandidates = -1;
 
         ANode() {}
 
         void set(Sudoku sudoku) {
-            snapshot.set(sudoku);
+            snapshot.copyFrom(sudoku);
             emptyCi = sudoku.pickEmptyCell();
             emptyCandidates = -1;
             if (!sudoku.isValid) return;
@@ -1608,7 +1550,7 @@ public class Sudoku {
             }
 
             do {
-                sudoku.loadFromSnapshot(snapshot);
+                sudoku.copyFrom(snapshot);
                 int[] candidateDigits = CANDIDATES[emptyCandidates];
 
                 int randomCandidateDigit = candidateDigits[ThreadLocalRandom.current().nextInt(candidateDigits.length)];
