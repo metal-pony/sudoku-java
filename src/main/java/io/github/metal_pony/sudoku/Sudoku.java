@@ -849,8 +849,6 @@ public class Sudoku {
     /** Tracks whether the board is currently valid.*/
     boolean isValid = true;
 
-    // TODO Implement isSolved cache
-    // This should be cached true when isSolved is called, and invalidated whenever a value is changed
     /** Tracks whether the board is solved.*/
     boolean isSolved = false;
 
@@ -1035,6 +1033,7 @@ public class Sudoku {
         if (prevDigit > 0) {
             numEmptyCells++;
             removeConstraint(cellIndex, prevDigit);
+            isSolved = false;
         }
         // Digit added (or replaced)
         if (digit > 0) {
@@ -1147,11 +1146,14 @@ public class Sudoku {
 
     /** Gets whether the sudoku board is solved (full and valid).*/
     public boolean isSolved() {
+        if (isSolved) return true;
+        if (!isFull()) return false;
         for (int c : constraints) {
             if (c != FULL_CONSTRAINTS) {
                 return false;
             }
         }
+        isSolved = true;
         return true;
     }
 
@@ -1949,11 +1951,7 @@ public class Sudoku {
 
         Sudoku _solution = solution.get();
         if (_solution != null) {
-            this.numEmptyCells = _solution.numEmptyCells;
-            this.isValid = _solution.isValid;
-            System.arraycopy(_solution.digits, 0, this.digits, 0, SPACES);
-            System.arraycopy(_solution.candidates, 0, this.candidates, 0, SPACES);
-            System.arraycopy(_solution.constraints, 0, this.constraints, 0, DIGITS);
+            copyFrom(_solution);
             return true;
         }
 
