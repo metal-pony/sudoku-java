@@ -852,6 +852,8 @@ public class Sudoku {
     /** Tracks whether the board is solved.*/
     boolean isSolved = false;
 
+    int solutionsFlag = -1;
+
     /**
      * Creates a new, empty Sudoku instance.
      */
@@ -935,6 +937,7 @@ public class Sudoku {
         this.numEmptyCells = SPACES;
         this.isSolved = false;
         this.isValid = true;
+        this.solutionsFlag = -1;
         Arrays.fill(this.candidates, ALL);
         Arrays.fill(this.digits, 0);
         Arrays.fill(this.constraints, 0);
@@ -948,6 +951,7 @@ public class Sudoku {
         this.numEmptyCells = other.numEmptyCells;
         this.isSolved = other.isSolved;
         this.isValid = other.isValid;
+        this.solutionsFlag = other.solutionsFlag;
         System.arraycopy(other.digits, 0, this.digits, 0, SPACES);
         System.arraycopy(other.candidates, 0, this.candidates, 0, SPACES);
         System.arraycopy(other.constraints, 0, this.constraints, 0, DIGITS);
@@ -962,13 +966,7 @@ public class Sudoku {
             throw new IllegalArgumentException("digits array has bad length");
         }
 
-        this.numEmptyCells = SPACES;
-        this.isSolved = false;
-        this.isValid = true;
-
-        Arrays.fill(this.candidates, ALL);
-        Arrays.fill(this.digits, 0);
-        Arrays.fill(this.constraints, 0);
+        reset();
 
         for (int ci = 0; ci < SPACES; ci++) {
             int d = digits[ci];
@@ -1034,11 +1032,15 @@ public class Sudoku {
             numEmptyCells++;
             removeConstraint(cellIndex, prevDigit);
             isSolved = false;
+            // If solutionsFlag was already 2 (multiple solutions),
+            // then removing a digit shouldn't change it.
+            if (solutionsFlag < 2) solutionsFlag = -1;
         }
         // Digit added (or replaced)
         if (digit > 0) {
             numEmptyCells--;
             addConstraint(cellIndex, digit);
+            solutionsFlag = -1;
         }
     }
 
@@ -1154,6 +1156,7 @@ public class Sudoku {
             }
         }
         isSolved = true;
+        solutionsFlag = 1;
         return true;
     }
 
@@ -1581,13 +1584,17 @@ public class Sudoku {
      * whether or not to continue the search.
      */
     public void searchForSolutions3(Function<Sudoku,Boolean> solutionCallback) {
+        if (solutionsFlag == 0) return;
+
         Sudoku puzz = new Sudoku(this);
         puzz.resetCandidatesAndValidity();
         puzz.reduce();
-
-        // If we can stop early then GREAT!
-        if (!puzz.isValid) return;
+        if (!puzz.isValid) {
+            solutionsFlag = 0;
+            return;
+        }
         if (puzz.isSolved()) {
+            solutionsFlag = 1;
             solutionCallback.apply(puzz);
             return;
         }
@@ -1597,6 +1604,7 @@ public class Sudoku {
         stack[0].set(puzz);
         stack[0].loadNext(puzz);
         int curStackIndex = 0;
+        boolean oneFound = false;
 
         while (curStackIndex > -1) {
             // NOTE: puzz state is modified by ANodes -- it will be kept in sync with the stack top.
@@ -1604,6 +1612,7 @@ public class Sudoku {
                 // While top does NOT have a valid alternative, POP off the stack.
                 while (curStackIndex > -1 && !stack[curStackIndex].loadNext(puzz)) curStackIndex--;
             } else if (puzz.isSolved()) {
+                oneFound = true;
                 // Solution found, send to callback and possibly halt.
                 if (!solutionCallback.apply(new Sudoku(puzz))) break;
                 // While top does NOT have a valid alternative, POP off the stack.
@@ -1616,6 +1625,8 @@ public class Sudoku {
                 stack[curStackIndex].loadNext(puzz);
             }
         }
+
+        if (!oneFound) solutionsFlag = 0;
     }
 
     /**
@@ -1624,10 +1635,15 @@ public class Sudoku {
      * @return Number of solutions to this sudoku.
      */
     public long countSolutions() {
+        if (solutionsFlag == 0) return 0L;
+        if (solutionsFlag == 1) return 1L;
+
         Sudoku root = new Sudoku(this);
         root.resetCandidatesAndValidity();
-
-        if (!root.isValid) return 0;
+        if (!root.isValid) {
+            solutionsFlag = 0;
+            return 0;
+        }
 
         long count = 0L;
         Stack<SudokuNode> stack = new Stack<>();
@@ -1647,6 +1663,7 @@ public class Sudoku {
             }
         }
 
+        solutionsFlag = (count >= 2L) ? 2 : (int)count;
         return count;
     }
 
@@ -1669,9 +1686,14 @@ public class Sudoku {
     ) {
         if (numThreads < 1) throw new IllegalArgumentException("numThreads must be positive");
         if (timeoutMs < 0L) timeoutMs = TimeUnit.HOURS.toMillis(1L);
+        if (solutionsFlag == 0) return true;
 
         Sudoku root = new Sudoku(this);
         root.resetCandidatesAndValidity();
+        if (!root.isValid) {
+            solutionsFlag = 0;
+            return true;
+        }
 
         Queue<SudokuNode> q = new LinkedList<>();
         q.offer(new SudokuNode(root));
@@ -1807,12 +1829,18 @@ public class Sudoku {
      */
     public long countSolutionsAsync(int numThreads) {
         if (numThreads < 1) throw new IllegalArgumentException("numThreads must be positive");
+        if (solutionsFlag == 0) return 0L;
+        if (solutionsFlag == 1) return 1L;
 
         AtomicLong count = new AtomicLong();
 
         Sudoku root = new Sudoku(this);
         // Ensure candidates and constraints are in good order for the search
         root.resetCandidatesAndValidity();
+        if (!root.isValid) {
+            solutionsFlag = 0;
+            return 0;
+        }
 
         int maxSplitSize = numThreads * numThreads;
         Queue<SudokuNode> queue = new LinkedList<>();
@@ -1851,6 +1879,7 @@ public class Sudoku {
             e.printStackTrace();
         }
 
+        solutionsFlag = (count.get() >= 2L) ? 2 : count.intValue();
         return count.get();
     }
 
@@ -1913,10 +1942,12 @@ public class Sudoku {
      * @return The given List.
      */
     public List<Sudoku> getAllSolutions(List<Sudoku> list) {
+        list.clear();
         searchForSolutions3(solution -> {
             list.add(solution);
             return true;
         });
+        solutionsFlag = (list.size() > 1) ? 2 : list.size();
         return list;
     }
     // TODO does it need to be a List, or can we just use Collection.add?
@@ -1952,6 +1983,7 @@ public class Sudoku {
         Sudoku _solution = solution.get();
         if (_solution != null) {
             copyFrom(_solution);
+            // solutionsFlag will be cached in _solution and copied over.
             return true;
         }
 
@@ -2466,11 +2498,18 @@ public class Sudoku {
      * as soon as 2 solutions are found.
      */
     public int solutionsFlag() {
-        if (!isValid) return 0;
-        if (numEmptyCells > SPACES - MIN_CLUES) return 2;
+        // Check if cached.
+        if (solutionsFlag > -1) return solutionsFlag;
+        // isSolved will cache solutionsFlag if true.
+        if (isSolved()) return 1;
+        if (!isValid) {
+            solutionsFlag = 0;
+            return solutionsFlag;
+        }
 
         AtomicInteger count = new AtomicInteger();
         searchForSolutions3(_s -> (count.incrementAndGet() < 2));
+        solutionsFlag = count.get();
         return count.get();
     }
 

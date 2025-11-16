@@ -884,6 +884,30 @@ public class TestSudoku {
     }
 
     @Test
+    void test_solutionsFlag_whenPuzzleIsInvalid_return0() {
+        for (String invalidPuzzleStr : invalidPuzzles) {
+            Sudoku invalidPuzzle = new Sudoku(invalidPuzzleStr);
+            assertEquals(0, invalidPuzzle.solutionsFlag());
+        }
+    }
+
+    @Test
+    void test_solutionsFlag_whenPuzzleIsValidSudoku_return1() {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(100)) {
+            Sudoku puzzle = new Sudoku(pStr);
+            assertEquals(1, puzzle.solutionsFlag());
+        }
+    }
+
+    @Test
+    void test_solutionsFlag_whenPuzzleHasMultipleSolutions_return2() {
+        for (String pStr : PUZZLESTRS_TO_NUM_SOLUTIONS.keySet()) {
+            Sudoku puzzle = new Sudoku(pStr);
+            assertEquals(2, puzzle.solutionsFlag());
+        }
+    }
+
+    @Test
     void test_getAllSolutions_whenPuzzleIsInvalid_returnsEmpty() {
         for (String invalidPuzzleStr : invalidPuzzles) {
             Sudoku invalidPuzzle = new Sudoku(invalidPuzzleStr);
