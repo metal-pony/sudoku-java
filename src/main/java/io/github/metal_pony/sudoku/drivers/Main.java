@@ -464,7 +464,7 @@ public class Main {
     defaultInMap(args, "threads", "1");
 
     String gridStr = args.get("grid");
-    boolean useSameSolution = (gridStr == null);
+    boolean useSameSolution = (gridStr != null);
     Sudoku grid = (gridStr == null) ? Sudoku.generateConfig() : new Sudoku(gridStr);
 
     final int amount = inBounds(Integer.parseInt(args.get("amount")), 1, 1_000_000);
