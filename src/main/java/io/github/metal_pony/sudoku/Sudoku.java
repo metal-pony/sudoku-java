@@ -990,9 +990,7 @@ public class Sudoku {
      * @return A new array containing the board digits.
      */
     public int[] toArray() {
-        int[] arr = new int[SPACES];
-        System.arraycopy(digits, 0, arr, 0, SPACES);
-        return arr;
+        return ArraysUtil.copy(digits);
     }
 
     /**
@@ -1009,9 +1007,7 @@ public class Sudoku {
      * @return A new array containing each cell's encoded value.
      */
     public int[] getCandidatesEncoded() {
-        int[] arr = new int[SPACES];
-        System.arraycopy(candidates, 0, arr, 0, SPACES);
-        return arr;
+        return ArraysUtil.copy(candidates);
     }
 
     /**
