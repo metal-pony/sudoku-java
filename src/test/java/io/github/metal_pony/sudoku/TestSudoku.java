@@ -883,6 +883,40 @@ public class TestSudoku {
         }
     }
 
+    @Test
+    void test_getAllSolutions_whenPuzzleIsInvalid_returnsEmpty() {
+        for (String invalidPuzzleStr : invalidPuzzles) {
+            Sudoku invalidPuzzle = new Sudoku(invalidPuzzleStr);
+            List<Sudoku> result = invalidPuzzle.getAllSolutions();
+            assertEquals(0, result.size());
+        }
+    }
+
+    @Test
+    void test_getAllSolutions_whenPuzzleIsInvalid_returnsListWithSingle() {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(100)) {
+            Sudoku puzzle = new Sudoku(pStr);
+            List<Sudoku> result = puzzle.getAllSolutions();
+            // Single solution
+            assertEquals(1, result.size());
+            // Solution is solved properly
+            assertTrue(result.get(0).isSolved());
+        }
+    }
+
+    @Test
+    void test_getAllSolutions_whenPuzzleHasMultipleSolutions_returnsList() {
+        for (Entry<String,Integer> entry : PUZZLESTRS_TO_NUM_SOLUTIONS.entrySet()) {
+            Sudoku puzzle = new Sudoku(entry.getKey());
+            List<Sudoku> result = puzzle.getAllSolutions();
+            assertEquals(entry.getValue(), result.size());
+            // Solution is solved properly
+            for (Sudoku solution : result) {
+                assertTrue(solution.isSolved());
+            }
+        }
+    }
+
     // @Test
     void sieveFindsAllExpectedMasks() {
         populateSieveForAllDigitCombos(3);

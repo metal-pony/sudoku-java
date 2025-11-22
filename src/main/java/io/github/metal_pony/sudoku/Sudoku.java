@@ -1913,7 +1913,7 @@ public class Sudoku {
     public List<Sudoku> getAllSolutions(List<Sudoku> list) {
         searchForSolutions3(solution -> {
             list.add(solution);
-            return false;
+            return true;
         });
         return list;
     }
