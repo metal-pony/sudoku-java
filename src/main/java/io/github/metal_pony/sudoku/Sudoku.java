@@ -1030,15 +1030,20 @@ public class Sudoku {
         // Digit removed (or replaced)
         if (prevDigit > 0) {
             numEmptyCells++;
-            removeConstraint(cellIndex, prevDigit);
             isSolved = false;
             // If solutionsFlag was already 2 (multiple solutions),
             // then removing a digit shouldn't change it.
             if (solutionsFlag < 2) solutionsFlag = -1;
+
+            removeConstraint(cellIndex, prevDigit);
         }
         // Digit added (or replaced)
         if (digit > 0) {
             numEmptyCells--;
+            // Will this cause the grid to be invalid?
+            if ((cellConstraints(cellIndex) & ENCODER[digit]) > 0) {
+                isValid = false;
+            }
             addConstraint(cellIndex, digit);
             solutionsFlag = -1;
         }
@@ -1071,9 +1076,50 @@ public class Sudoku {
      */
     void removeConstraint(int cellIndex, int digit) {
         int dMask = ENCODER[digit];
-        constraints[CELL_ROWS[cellIndex]] &= ~(dMask << (DIGITS*2));
-        constraints[CELL_COLS[cellIndex]] &= ~(dMask << DIGITS);
-        constraints[CELL_REGIONS[cellIndex]] &= ~dMask;
+
+        if (isValid) {
+            constraints[CELL_ROWS[cellIndex]] &= ~(dMask << (DIGITS*2));
+            constraints[CELL_COLS[cellIndex]] &= ~(dMask << DIGITS);
+            constraints[CELL_REGIONS[cellIndex]] &= ~dMask;
+        } else {
+            boolean sawConflict = false;
+            boolean shouldRemove = true;
+            for (int neighborIndex : ROW_NEIGHBORS[cellIndex]) {
+                if (digits[neighborIndex] == digit) {
+                    shouldRemove = false;
+                    sawConflict = true;
+                    break;
+                }
+            }
+            if (shouldRemove) constraints[CELL_ROWS[cellIndex]] &= ~(dMask << (DIGITS*2));
+
+            shouldRemove = true;
+            for (int neighborIndex : COL_NEIGHBORS[cellIndex]) {
+                if (digits[neighborIndex] == digit) {
+                    shouldRemove = false;
+                    sawConflict = true;
+                    break;
+                }
+            }
+            if (shouldRemove) constraints[CELL_COLS[cellIndex]] &= ~(dMask << DIGITS);
+
+            shouldRemove = true;
+            for (int neighborIndex : REGION_NEIGHBORS[cellIndex]) {
+                if (digits[neighborIndex] == digit) {
+                    shouldRemove = false;
+                    sawConflict = true;
+                    break;
+                }
+            }
+            if (shouldRemove) constraints[CELL_REGIONS[cellIndex]] &= ~dMask;
+
+            // If the constraint was ignored because another neighbor had the same digit,
+            // then the grid removed a conflicting digit.
+            // Check if the grid is now valid again.
+            if (sawConflict) {
+                isValid = isValid(digits);
+            }
+        }
     }
 
     /**
