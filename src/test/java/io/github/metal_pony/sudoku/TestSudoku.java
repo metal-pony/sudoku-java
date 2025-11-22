@@ -382,10 +382,23 @@ public class TestSudoku {
     }};
 
     private String[] invalidPuzzles = new String[]{
+        // No solution because invalid
         // Invalid because of digit clashing (col 7: 3...5.3.1)
+        // 1 . 2   . . .   . 3 .
+        // . 9 .   . 1 .   . . .
+        // . . .   . . 3   . . 1
+        //
+        // . 1 5   . . .   4 . .
+        // . 2 .   1 . .   . 5 .
+        // 8 . .   . . .   1 . 6
+        //
+        // . . 1   . . .   . 3 .
+        // . . .   . . 1   . . .
+        // 2 . .   . . .   . 1 .
+        //                   ^--- this column has multiple 3s
         "1.2....3..9..1.........3..1.15...4...2.1...5.8.....1.6..1....3......1...2......1.",
-        // Invalid because cell 0 has no candidates
-        ".123456789...1...........1.1...........1...........1....1...........1...........1"
+        // No solution because cell 0 has no candidates
+        // ".123456789...1...........1.1...........1...........1....1...........1...........1"
     };
 
     @BeforeEach
@@ -468,6 +481,56 @@ public class TestSudoku {
         Arrays.sort(actualItems);
         Arrays.sort(expectedItems);
         assertArrayEquals(expectedItems, actualItems);
+    }
+
+    @Test
+    void test_isValid() {
+        Sudoku s = Sudoku.generateConfig();
+        assertTrue(s.isValid());
+        int originalDigit = s.getDigit(0);
+        // Make invalid
+        s.setDigit(0, s.getDigit(1));
+        assertFalse(s.isValid());
+
+        // Another is built by string constructor with invalid sudoku string
+        Sudoku s2 = new Sudoku(s.toString());
+        assertFalse(s2.isValid());
+        // Set the cell back to the original digit.
+        s2.setDigit(0, originalDigit);
+        assertTrue(s2.isValid());
+    }
+
+    @Test
+    void test_stringConstructor_whenStringIsInvalid() {
+        for (String pStr : invalidPuzzles) {
+            Sudoku p = new Sudoku(pStr);
+            assertFalse(p.isValid());
+            assertFalse(p.isSolved());
+            assertFalse(p.isFull());
+            assertFalse(p.isEmpty());
+        }
+    }
+
+    @Test
+    void test_stringConstructor_whenStringIsValid() {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(100)) {
+            Sudoku p = new Sudoku(pStr);
+            assertTrue(p.isValid());
+            assertFalse(p.isSolved());
+            assertEquals(24, p.numClues());
+            assertEquals(Sudoku.SPACES - 24, p.numEmptyCells());
+            assertFalse(p.isFull());
+            assertFalse(p.isEmpty());
+        }
+
+        // for (String pStr : ) {
+            assertTrue(configFixture.isValid());
+            assertTrue(configFixture.isSolved());
+            assertEquals(Sudoku.SPACES, configFixture.numClues());
+            assertEquals(0, configFixture.numEmptyCells());
+            assertTrue(configFixture.isFull());
+            assertFalse(configFixture.isEmpty());
+        // }
     }
 
     @Test
@@ -631,12 +694,12 @@ public class TestSudoku {
     }
 
     @Test
-    void test_searchForSolutions3_withKnownInvalidPuzzles_findsNoSolutions() {
+    void test_searchForSolutions_withKnownInvalidPuzzles_findsNoSolutions() {
         for (String invalidStr : invalidPuzzles) {
             Sudoku p = new Sudoku(invalidStr);
             ArrayList<Sudoku> solutionSet = new ArrayList<>();
             long timeStart = System.currentTimeMillis();
-            p.searchForSolutions3(s -> {
+            p.searchForSolutions(s -> {
                 solutionSet.add(s);
                 return true;
             });
@@ -676,10 +739,10 @@ public class TestSudoku {
     }
 
     @Test
-    void test_searchForSolutions3_withKnownValidPuzzle_findsSolution() {
+    void test_searchForSolutions_withKnownValidPuzzle_findsSolution() {
         Sudoku p = new Sudoku("...8.1..........435............7.8........1...2..3....6......75..34........2..6..");
         ArrayList<String> solutionSet = new ArrayList<>();
-        p.searchForSolutions3(s -> {
+        p.searchForSolutions(s -> {
             // System.out.println(s.toString());
             solutionSet.add(s.toString());
             return true;
@@ -694,7 +757,7 @@ public class TestSudoku {
             p = new Sudoku(entry.getKey());
             int expectedNumSolutions = entry.getValue();
             solutionSet.clear();
-            p.searchForSolutions3(s -> solutionSet.add(s.toString()));
+            p.searchForSolutions(s -> solutionSet.add(s.toString()));
             assertEquals(expectedNumSolutions, solutionSet.size());
         }
     }
@@ -774,9 +837,9 @@ public class TestSudoku {
     }
 
     @Test
-    void searchForSolutions3() {
+    void searchForSolutions() {
         HashSet<String> solutionSet = new HashSet<>();
-        puzzleFixture.searchForSolutions3(s -> {
+        puzzleFixture.searchForSolutions(s -> {
             solutionSet.add(s.normalize().toString());
             return true;
         });
@@ -787,7 +850,7 @@ public class TestSudoku {
 
         PUZZLESTRS_TO_NUM_SOLUTIONS.forEach((puzzleStr, expectedNumSolutions) -> {
             solutionSet.clear();
-            new Sudoku(puzzleStr).searchForSolutions3(s -> {
+            new Sudoku(puzzleStr).searchForSolutions(s -> {
                 solutionSet.add(s.toString());
                 return true;
             });

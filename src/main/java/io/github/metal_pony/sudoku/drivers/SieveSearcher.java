@@ -283,7 +283,7 @@ class SieveSearcher {
               );
 
               final long _sieveSize = sieveSize;
-              grid.filter(mask).searchForSolutions3(solution -> {
+              grid.filter(mask).searchForSolutions(solution -> {
                 SudokuMask diff = grid.diffMask(solution);
                 if (sieve.add(diff)) {
                   itemsIndices.put(diff, ArraysUtil.shuffle(diff.toIndices()));

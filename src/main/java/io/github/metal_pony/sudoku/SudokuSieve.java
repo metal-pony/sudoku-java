@@ -374,7 +374,7 @@ public class SudokuSieve {
      */
     public int addFromFilter(SudokuMask mask) {
         AtomicInteger numAdded = new AtomicInteger();
-        _config.filter(mask.flip()).searchForSolutions3(solution -> {
+        _config.filter(mask.flip()).searchForSolutions(solution -> {
             SudokuMask diff = _config.diffMask(solution);
             if (
                 diff.bitCount() > 0 &&
@@ -391,7 +391,7 @@ public class SudokuSieve {
 
     public int addFromPuzzleMask(SudokuMask mask) {
         AtomicInteger numAdded = new AtomicInteger();
-        _config.filter(mask).searchForSolutions3(solution -> {
+        _config.filter(mask).searchForSolutions(solution -> {
             SudokuMask diff = _config.diffMask(solution);
             if (
                 diff.bitCount() > 0 &&
