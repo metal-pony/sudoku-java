@@ -100,6 +100,23 @@ public class ArraysUtil {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
 
+    /**
+     * Chooses a specified number of random integers from the given array.
+     * @param arr Array of integers to choose from.
+     * @param amount Number of items.
+     * @return A new array containing the choices.
+     */
+    public static int[] chooseRandom(int[] arr, int amount) {
+        if (amount < 0) throw new RuntimeException("Amount is negative");
+        if (amount > arr.length) throw new RuntimeException("Amount is more than array length");
+
+        int[] choices = Counting.randomCombo(arr.length, amount);
+        for (int i = 0; i < choices.length; i++) {
+            choices[i] = arr[choices[i]];
+        }
+        return choices;
+    }
+
     /** Returns a random element from the array. */
     public static long chooseRandom(long[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
@@ -113,6 +130,26 @@ public class ArraysUtil {
     /** Returns a random element from the array. */
     public static double chooseRandom(double[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
+    }
+
+    public static <T> T chooseRandom(T[] arr) {
+        return arr[ThreadLocalRandom.current().nextInt(arr.length)];
+    }
+
+    public static <T> T chooseRandom(List<T> list) {
+        return list.get(ThreadLocalRandom.current().nextInt(list.size()));
+    }
+
+    /**
+     * Chooses a specified number of random integers from the given array.
+     * @param arr Array of integers to choose from.
+     * @param amount Number of items.
+     * @return A new array containing the choices.
+     */
+    public static <T> List<T> chooseRandom(List<T> list, int amount) {
+        if (amount < 0) throw new RuntimeException("Amount is negative");
+        if (amount > list.size()) throw new RuntimeException("Amount is more than list size");
+        return shuffle(new ArrayList<>(list)).subList(0, amount);
     }
 
     /** Shuffles the given array in-place. */

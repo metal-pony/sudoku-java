@@ -2239,15 +2239,11 @@ public class Sudoku {
      */
     public Sudoku normalize() {
         if (!isValid) return this;
-        if (isSolved()) {
-            copyFrom(normalize(ArraysUtil.copy(this.digits)));
-        } else {
-            if (solutionsFlag() != 1) return this;
-            int[] solutionDigits = normalize(solution().digits);
-            for (int i = 0; i < SPACES; i++) {
-                if (digits[i] == 0) solutionDigits[i] = 0;
+        for (int i = 0; i < DIGITS; i++) {
+            int di = digits[i];
+            if (di > 0 && di != (i + 1)) {
+                swapDigits(di, i + 1);
             }
-            copyFrom(solutionDigits);
         }
         return this;
     }
