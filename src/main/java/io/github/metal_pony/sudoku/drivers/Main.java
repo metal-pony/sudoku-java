@@ -296,28 +296,107 @@ public class Main {
   // TODO update help content
   private static void help(ArgsMap args) {
     System.out.println(
-"""
-Commands:
-    play [--clues (27)]
-        Generatees a puzzle with the given number of clues, then starts a GUI.
-    generateConfigs [--amount (1), --normalize (false)]
-        Generates a full sudoku grid. Optionally "normalize" the grid such that
-        the top row reads 1 through 9, sequentially.
-    generatePuzzles [--amount (1) --clues (27) --threads (1)]
-        Generates a sudoku puzzle with the given number of clues.
-    solve --grid [--timeoutMs (10_000) --threads (1)]
-        Prints all solutions of the given sudoku grid.
-    sieve [--grid (random) --level (2)]
-        Gets unavoidable sets for the given grid.
-        `level` supported from 2 through 4.
-    fingerprint [--grid (random) --level (2)]
-        Generates a fingerprint for the sudoku grid.
-        `level` supported from 2 through 4.
-        The result is independent how the grid may be changed by symmetry-preserving
-        operations. Therefore, if any two seemingly different grids have the same
-        fingerprints, it is very likely they are the same grid, just scrambled.
-        Like different states of a Rubik's cube.
-"""
+      """
+      --- COMMANDS ---
+
+      help                    Display commands and usage.
+
+      generateSolutions       Generate sudoku solution(s).
+        --amount {n >= 1}     Specify an amount to generate.
+        --normalize           Arrange digits such that the top row of the board
+                              reads 1 through 9 sequentially.
+        --threads             Use all available system threads.
+        --threads {n >= 1}    Use a given number of system threads.
+                              Not recommended to use more than the system maximum.
+        --pretty              Output grids in a more readable form.
+
+      generatePuzzles         Generate sudoku puzzle(s).
+        --amount {n >= 1}     Specify an amount to generate.
+        --normalize           Arrange digits such that the top row of the solution
+                              reads 1 through 9 sequentially.
+        --threads             Use all available system threads.
+        --threads {n >= 1}    Use a given number of system threads.
+                              Not recommended to use more than the system maximum.
+        --clues {17 - 81}     Generate a puzzle with a given number of clues.
+                              Less than 20 is not recommended due to the
+                              processing power required.
+                              Default 31.
+        --difficulty {1 - 3}  Specify the difficulty of the generate puzzle.
+          1: Easy             Solvable by finding naked and hidden singles.
+          2: Moderate         Solvable by finding {Not yet defined}
+          3: Hard             Solvable with more advanced techniques than above.
+                              Generation may hang or fail if the number of clues
+                              is high, e.g., --clues 80 --difficulty 3 ; since there
+                              aren't enough empty spaces on the grid to form a
+                              difficult puzzle.
+        --solution            Generate a random solution to use for the puzzle(s).
+        --solution {str}      Use the given solution for the puzzle(s).
+        --pretty              Output puzzles in a more readable form.
+
+      solve                   Find solution(s) for a given grid.
+        --grid {str}          The grid to find solutions for.
+        --all                 Output all solutions.
+        --first               Output the first solution found.
+        --amount {n >= 1}     Output the first (n) solutions found.
+        --count               Output only the number of solutions.
+        --threads             Use all available system threads.
+        --threads {n >= 1}    Use a given number of system threads.
+                              Not recommended to use more than the system maximum.
+        --pretty              Output solutions in a more readable form.
+
+      scramble                Jumbles the input grid or puzzle randomly.
+        --grid {str}          The grid to scramble.
+
+      csv                     Transforms input sudoku data into csv.
+                              Input should be plaintext puzzles, solutions, or
+                              puzzle/solutions csv records.
+        --format {str}        The output format.
+                              Components should be wrapped in curly braces.
+                              Unknown components will be calculated, so be
+                              mindful of the CPU usage of level 4 fingerprints.
+                  COMPONENTS  {puzzle} from input.
+                              {solution} from input, or calculated from puzzle.
+                              {dc2} digit-combo fingerprint (level 2).
+                              {dc3} digit-combo fingerprint (level 3).
+                              {dc4} ...
+                              {fp2} full-print fingerprint (level 2).
+                              {fp3} ...
+                              {fp4} ...
+                  EXAMPLE     csv --format '{puzzle},{solution},{fp3}'
+        --threads             Use all available system threads.
+        --threads {n >= 1}    Use a given number of system threads.
+
+      sieve                   Generate a set of unavoidable sets for a given grid.
+        --algo                The strategy to use for seeding the sieve.
+                              Usually digit-combos (dc), or full-print (fp),
+                              from levels 2 to 4.
+                      VALUES  "dc2", "dc3", "dc4", "fp2", "fp3", "fp4".
+                              Default: fp3.
+
+      fingerprint (alt: fp)   Generate a hash for a grid. The fingerprint will be
+                              the same regardless of how the grid is transformed
+                              via symmetry-preserving transformations. All grids
+                              that are essentially similar are guaranteed to share
+                              the same fingerprint.
+        --algo                The strategy to use. Usually digit-combos (dc), or
+                              full-print (fp), from levels 2 to 4.
+                              "dc2", "dc3", "dc4", "fp2", "fp3", "fp4".
+                              Default: fp3.
+        --threads             Use all available system threads.
+        --threads {n >= 1}    Use a given number of system threads.
+                              Not recommended to use more than the system maximum.
+
+      sieveSearch             A hitting-set search for finding lower-clue puzzles.
+        --grid {str}          The grid to find puzzles for. Default: random.
+        --level {2 - 4}       The level at which to seed the sieve. Default: 3.
+        --maxClues {17 - 81}  Maximum number of puzzle clues. The search may discover
+                              puzzles with less than this maximum. Default: no max.
+
+      minSearch               A hitting-set search designed to find puzzles with
+                              the lowest number of clues.
+        --grid {str}          The grid to find minimum puzzles for. Default: random.
+        --level {2 - 4}       The level at which to seed the sieve. Default: 3.
+      """
     );
   }
 
@@ -385,7 +464,7 @@ Commands:
     defaultInMap(args, "threads", "1");
 
     String gridStr = args.get("grid");
-    boolean useSameSolution = (gridStr == null);
+    boolean useSameSolution = (gridStr != null);
     Sudoku grid = (gridStr == null) ? Sudoku.generateConfig() : new Sudoku(gridStr);
 
     final int amount = inBounds(Integer.parseInt(args.get("amount")), 1, 1_000_000);

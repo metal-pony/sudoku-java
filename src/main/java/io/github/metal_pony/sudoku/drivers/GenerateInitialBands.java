@@ -196,7 +196,7 @@ public class GenerateInitialBands {
                     // TODO Additional symmetries can be found by locating UAs within the band
 
                     // AtomicReference<Sudoku> atomicConfig = new AtomicReference<>();
-                    // bandPuzzle.searchForSolutions3(solution -> {
+                    // bandPuzzle.searchForSolutions(solution -> {
                     //   atomicConfig.set(solution);
                     //   return false;
                     // });
