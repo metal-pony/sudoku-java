@@ -501,7 +501,7 @@ public class TestSudokuMask {
 
         mask.setBit(19);
         for (int t = 0; t < 10; t++) {
-            SudokuMask other = new SudokuMask(mask.toString());
+            SudokuMask other = new SudokuMask(mask);
             for (int n = 0; n < 50; n++) {
                 other.setBit(rand.nextInt(81));
                 assertTrue(other.hasBitsSet(mask));

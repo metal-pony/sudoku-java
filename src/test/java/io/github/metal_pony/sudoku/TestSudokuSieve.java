@@ -131,7 +131,7 @@ public class TestSudokuSieve {
         sieve.rawAdd(item);
         ThreadLocalRandom rand = ThreadLocalRandom.current();
         for (int t = 0; t < 100; t++) {
-            SudokuMask clearlyDerivative = new SudokuMask(item.toString());
+            SudokuMask clearlyDerivative = new SudokuMask(item);
             while (clearlyDerivative.bitCount() <= item.bitCount()) {
                 clearlyDerivative.setBit(rand.nextInt(81));
             }
