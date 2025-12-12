@@ -1,6 +1,7 @@
 package io.github.metal_pony.sudoku;
 
 import java.util.Comparator;
+import java.util.concurrent.ThreadLocalRandom;
 
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
@@ -395,5 +396,52 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
     @Override
     public int compare(SudokuMask o1, SudokuMask o2) {
         return o1.compareTo(o2);
+    }
+
+    public void randomPalindrome(int bitCount) {
+        if (bitCount < 0 || bitCount > N) throw new RangeException(bitCount);
+        int k = bitCount / 2;
+        long nck = Counting.NChooseKLong(40, k);
+        long r = ThreadLocalRandom.current().nextLong(nck);
+        palindrome(bitCount, r);
+    }
+
+    public void palindrome(int bitCount, long r) {
+        if (bitCount < 0 || bitCount > N) throw new RangeException(bitCount);
+
+        bitsSet = bitCount;
+        bits[0] = 0L;
+        bits[1] = 0L;
+        if (bitCount == 0) {
+            return;
+        } else if (bitCount == N) {
+            bits[1] = 0x1FFFFL;
+            bits[0] = 0xFFFFFFFFFFFFFFFFL;
+            return;
+        }
+
+        int n = 40;
+        int k = bitCount / 2;
+        long nck = Counting.NChooseKLong(40, k);
+
+        if (r >= nck) throw new IllegalArgumentException(String.format("r too large. Max %d", nck));
+
+        int bit = 0;
+		for (int _n = n - 1, _k = k - 1; _k >= 0; _n--, bit++) {
+			long _nck = Counting.NChooseKLong(_n, _k);
+			if (r < _nck) {
+                bits[0] |= 1L << bit;
+                if (bit > 16) {
+                    bits[0] |= 1L << (80 - bit);
+                } else {
+                    bits[1] |= 1L << (16 - bit);
+                }
+				_k--;
+			} else {
+				r -= _nck;
+			}
+		}
+
+        if (bitCount % 2 == 1) bits[0] |= (1L << 40);
     }
 }
