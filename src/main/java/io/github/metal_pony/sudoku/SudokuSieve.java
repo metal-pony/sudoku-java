@@ -155,7 +155,7 @@ public class SudokuSieve {
         for (ItemGroup group : _itemGroupsByBitCount) {
             if (group.items.isEmpty()) continue;
             for (SudokuMask item : group.items) {
-                SudokuMask _item = new SudokuMask(item.toString());
+                SudokuMask _item = new SudokuMask(item);
                 if (predicate.apply(_item)) {
                     return _item;
                 }
@@ -184,7 +184,7 @@ public class SudokuSieve {
         List<SudokuMask> results = new ArrayList<>();
         synchronized (this) {
             for (SudokuMask item : groupForBitCount(numClues).items) {
-                results.add(new SudokuMask(item.toString()));
+                results.add(new SudokuMask(item));
             }
         }
         return results;
@@ -281,7 +281,7 @@ public class SudokuSieve {
      */
     public boolean validate(SudokuMask mask) {
         return _config.filter(
-            new SudokuMask(mask.toString()).flip()
+            new SudokuMask(mask).flip()
         ).doBranchesSolveUniquely();
     }
 

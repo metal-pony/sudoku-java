@@ -159,16 +159,15 @@ public class TestSudokuMask {
         assertThrows(LengthException.class, () -> { new SudokuMask("1".repeat(82).toCharArray()); });
 
         // Check that non-zero digit characters set bits
-        char[] input = new char[81];
-        Arrays.fill(input, '0');
+        char[] charArr = new char[81];
+        Arrays.fill(charArr, '0');
         int expectedBitCount = 0;
-        mask = new SudokuMask(input);
         for (int i = 0; i < 81; i++) {
-            input[i] = '1';
+            charArr[i] = '1';
             expectedBitCount++;
-            mask = new SudokuMask(input);
+            mask = new SudokuMask(charArr);
             assertEquals(expectedBitCount, mask.bitCount());
-            assertEquals(new String(input), mask.toString());
+            assertEquals(new String(charArr), mask.toString());
             assertTrue(mask.testBit(i));
         }
     }
@@ -460,17 +459,11 @@ public class TestSudokuMask {
 
     @Test
     void hasBitsSet() {
-        // No longer supported
-        // assertFalse(mask.hasBitsSet(null));
-
         // Empty never has bits set
         assertFalse(mask.hasBitsSet(mask));
-        assertFalse(mask.hasBitsSet(new int[0]));
         assertFalse(mask.hasBitsSet(new SudokuMask()));
         assertFalse(mask.hasBitsSet(SudokuMask.full()));
-        assertFalse(mask.hasBitsSet(SudokuMask.full().toIndices()));
         assertFalse(SudokuMask.full().hasBitsSet(mask));
-        assertFalse(SudokuMask.full().hasBitsSet(new int[0]));
 
         String[] falseCases = new String[] {
             "010100000000000000010001010000000000000001100000000000000000000001010000010100000",
@@ -487,28 +480,22 @@ public class TestSudokuMask {
         for (int i = 0; i < falseCases.length - 1; i++) {
             SudokuMask a = new SudokuMask(falseCases[i]);
             assertTrue(a.hasBitsSet(a));
-            assertTrue(a.hasBitsSet(a.toIndices()));
             for (int j = i + 1; j < falseCases.length; j++) {
                 SudokuMask b = new SudokuMask(falseCases[j]);
                 assertTrue(b.hasBitsSet(b));
-                assertTrue(b.hasBitsSet(b.toIndices()));
                 assertFalse(a.hasBitsSet(b));
-                assertFalse(a.hasBitsSet(b.toIndices()));
                 assertFalse(b.hasBitsSet(a));
-                assertFalse(b.hasBitsSet(a.toIndices()));
             }
         }
 
         mask.setBit(19);
         for (int t = 0; t < 10; t++) {
-            SudokuMask other = new SudokuMask(mask.toString());
+            SudokuMask other = new SudokuMask(mask);
             for (int n = 0; n < 50; n++) {
                 other.setBit(rand.nextInt(81));
                 assertTrue(other.hasBitsSet(mask));
-                assertTrue(other.hasBitsSet(mask.toIndices()));
             }
             assertFalse(mask.hasBitsSet(other));
-            assertFalse(mask.hasBitsSet(other.toIndices()));
         }
     }
 

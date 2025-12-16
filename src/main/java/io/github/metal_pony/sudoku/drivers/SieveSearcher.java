@@ -353,7 +353,7 @@ class SieveSearcher {
             }
           }
           if (satisfied) {
-            resultSet.add(new SudokuMask(mask.toString()));
+            resultSet.add(new SudokuMask(mask));
             searchDown(resultSet, searchDownSeen);
           }
         }
