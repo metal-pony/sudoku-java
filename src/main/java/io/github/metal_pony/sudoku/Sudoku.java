@@ -1562,25 +1562,19 @@ public class Sudoku {
         int emptyCellIndex = -1;
         int candidates = -1;
 
-        SearchNode() {}
-        SearchNode(Sudoku src) {
-            load(src);
-        }
-
         void load(Sudoku src) {
             sudoku.copyFrom(src);
             pickCell();
         }
 
         void pickCell() {
-            sudoku.reduce();
             emptyCellIndex = sudoku.pickEmptyCell();
             if (emptyCellIndex != -1) {
                 candidates = sudoku.candidates[emptyCellIndex];
             }
         }
 
-        SearchNode next() {
+        SearchNode next(int reductionLevel) {
             // No further branches to try (sudoku is probably invalid or solved).
             if (!hasNext()) return null;
 
@@ -1594,6 +1588,7 @@ public class Sudoku {
             nextNode.sudoku.setDigit(emptyCellIndex, randomCandidateDigit);
             candidates &= ~(ENCODER[randomCandidateDigit]);
 
+            nextNode.sudoku.reduce(reductionLevel);
             nextNode.pickCell();
 
             return nextNode;
@@ -1605,77 +1600,6 @@ public class Sudoku {
 
         void recycle() {
             SearchNode.recycle(this);
-        }
-    }
-
-    // SearchNode, but pickCell only reduces at level 0 (naked singles)
-    // TODO Refactor such that this subclass is not needed.
-    private static class GenerationNode extends SearchNode {
-        private static AtomicLong createdCount = new AtomicLong();
-        private static AtomicLong reusedCount = new AtomicLong();
-        private static AtomicLong recycledCount = new AtomicLong();
-
-        private static Stack<GenerationNode> nodePool = new Stack<>();
-
-        private static synchronized GenerationNode create() {
-            // return nodePool.isEmpty() ? new SearchNode() : nodePool.pop();
-            if (nodePool.isEmpty()) {
-                createdCount.incrementAndGet();
-                return new GenerationNode();
-            } else {
-                reusedCount.incrementAndGet();
-                return nodePool.pop();
-            }
-        }
-
-        private static synchronized void recycle(GenerationNode node) {
-            // This static stack persists throughout program execution.
-            // TODO Question: Run some adhoc tests and see how large this actually gets.
-            // If very large, consider using weak references.
-            recycledCount.incrementAndGet();
-            nodePool.push(node);
-        }
-
-        public static synchronized String stats() {
-            return String.format(
-                "GenerationNode Pool Stats: Current Size: %d; Created⭐️: %d; Reused💫: %d; Recycled♻️ %d\n",
-                nodePool.size(),
-                createdCount.get(),
-                reusedCount.get(),
-                recycledCount.get()
-            );
-        }
-
-        void pickCell() {
-            sudoku.reduce(0);
-            emptyCellIndex = sudoku.pickEmptyCell();
-            if (emptyCellIndex != -1) {
-                candidates = sudoku.candidates[emptyCellIndex];
-            }
-        }
-
-        GenerationNode next() {
-            // No further branches to try (sudoku is probably invalid or solved).
-            if (!hasNext()) return null;
-
-            // Recycle a node if there are any.
-            // GenerationNode nextNode = new GenerationNode();
-            GenerationNode nextNode = GenerationNode.create();
-            nextNode.sudoku.copyFrom(sudoku);
-
-            // Pick a random candidate and set it in the next node.
-            int[] candidateDigits = CANDIDATES[candidates];
-            int randomCandidateDigit = candidateDigits[ThreadLocalRandom.current().nextInt(candidateDigits.length)];
-            nextNode.sudoku.setDigit(emptyCellIndex, randomCandidateDigit);
-            candidates &= ~(ENCODER[randomCandidateDigit]);
-
-            nextNode.pickCell();
-
-            return nextNode;
-        }
-
-        void recycle() {
-            GenerationNode.recycle(this);
         }
     }
 
@@ -1717,7 +1641,7 @@ public class Sudoku {
                 stack.pop();
                 top.recycle();
             } else if (top.hasNext()) {
-                stack.push(top.next());
+                stack.push(top.next(1));
             } else {
                 stack.pop();
                 top.recycle();
@@ -1791,7 +1715,7 @@ public class Sudoku {
                 continue;
             }
 
-            while (node.hasNext()) q.offer(node.next());
+            while (node.hasNext()) q.offer(node.next(1));
         }
 
         ThreadPoolExecutor pool = new ThreadPoolExecutor(
@@ -1896,7 +1820,7 @@ public class Sudoku {
                     node.recycle();
                     return;
                 } else if (node.hasNext()) {
-                    stack.push(node.next());
+                    stack.push(node.next(1));
                 } else {
                     stack.pop();
                     node.recycle();
@@ -1962,17 +1886,17 @@ public class Sudoku {
             candidates[ci] &= ~cellConstraints(ci);
         }
 
-        Stack<GenerationNode> stack = new Stack<>();
-        GenerationNode rootNode = GenerationNode.create();
+        Stack<SearchNode> stack = new Stack<>();
+        SearchNode rootNode = SearchNode.create();
         rootNode.load(this);
         stack.push(rootNode);
         while (!stack.isEmpty()) {
-            GenerationNode top = stack.peek();
+            SearchNode top = stack.peek();
             if (top.sudoku.isSolved()) {
                 copyFrom(top.sudoku);
                 break;
             } else if (top.hasNext()) {
-                stack.push(top.next());
+                stack.push(top.next(0));
             } else {
                 top.recycle();
                 stack.pop();
