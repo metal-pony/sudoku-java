@@ -1216,7 +1216,34 @@ public class Sudoku {
      * May or may not complete the board.
      */
     public void reduce() {
-        for (int i = 0; i < SPACES; i++) reduceCell(i);
+        reduce(1);
+    }
+
+    /**
+     * Attempts to fill in the board values by constraint propagation and
+     * other basic sudoku techniques.
+     * May or may not complete the board.
+     */
+    public void reduce(int level) {
+        boolean hadReduction;
+        do {
+            hadReduction = false;
+
+            // Resolves naked singles
+            for (int i = 0; i < SPACES; i++) reduceCell(i);
+
+            // Resolves hidden singles
+            if (level >= 1) {
+                for (int i = 0; i < SPACES; i++) {
+                    if (digits[i] > 0) continue;
+                    int uniqueCandidate = hiddenSingles(i);
+                    if (uniqueCandidate > 0) {
+                        setDigit(i, DECODER[uniqueCandidate]);
+                        hadReduction = true;
+                    }
+                }
+            }
+        } while (hadReduction);
     }
 
     /**
@@ -1246,10 +1273,10 @@ public class Sudoku {
         if (isDigit(candidates[ci])) {
             setDigit(ci, DECODER[candidates[ci]]);
         } else {
-            int uniqueCandidate = getUniqueCandidate(ci);
-            if (uniqueCandidate > 0) {
-                setDigit(ci, DECODER[uniqueCandidate]);
-            } else {
+            // int uniqueCandidate = hiddenSingles(ci);
+            // if (uniqueCandidate > 0) {
+            //     setDigit(ci, DECODER[uniqueCandidate]);
+            // } else {
                 // If cell[ci] is not a double, then this next part can be skipped.
                 // if (isCandidatePair(reducedCandidates)) {
                 //     // For each area,
@@ -1289,60 +1316,13 @@ public class Sudoku {
                 //         }
                 //     }
                 // }
-            }
+            // }
         }
 
         if (candidates[ci] < originalCandidates) {
             for (int n : CELL_NEIGHBORS[ci]) {
                 if (digits[n] == 0) {
                     reduceCell(n);
-                }
-            }
-        }
-    }
-
-    /**
-     * Helper method for performing a pass of constraint propagation on the entire board,
-     * similar to <code>reduce()</code>, but only constraint propagation -- not
-     * checking any other techniques.
-     *
-     * Not currently used.
-     */
-    private void constraintProp() {
-        for (int i = 0; i < SPACES; i++) {
-            _constraintProp(i);
-        }
-    }
-
-    /**
-     * Helper to propagate constraints to a specific cell.
-     * Similar to <code>reduceCell()</code>.
-     * @param ci Cell index.
-     */
-    private void _constraintProp(int ci) {
-        if (digits[ci] > 0) {
-            return;
-        }
-
-        int originalCandidates = candidates[ci];
-        // If candidate constraints reduces to 0, then the board is likely invalid.
-        candidates[ci] &= ~cellConstraints(ci);
-        if (candidates[ci] <= 0) {
-            isValid = false;
-            setDigit(ci, 0);
-            return;
-        }
-
-        // If by applying the constraints, the number of candidates is reduced to 1,
-        // then the cell is solved.
-        if (isDigit(candidates[ci])) {
-            setDigit(ci, DECODER[candidates[ci]]);
-        }
-
-        if (candidates[ci] < originalCandidates) {
-            for (int n : CELL_NEIGHBORS[ci]) {
-                if (digits[n] == 0) {
-                    _constraintProp(n);
                 }
             }
         }
@@ -1356,7 +1336,7 @@ public class Sudoku {
      * @param cellIndex
      * @return The unique candidate value (encoded); or 0 if none.
      */
-    int getUniqueCandidate(int cellIndex) {
+    int hiddenSingles(int cellIndex) {
         for (int candidate : CANDIDATES_ENC[candidates[cellIndex]]) {
             boolean unique = true;
             for (int neighborIndex : ROW_NEIGHBORS[cellIndex]) {
