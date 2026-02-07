@@ -280,9 +280,13 @@ public class SudokuSieve {
      * @return True if the mask is an unavoidable set; otherwise false.
      */
     public boolean validate(SudokuMask mask) {
-        return _config.filter(
-            new SudokuMask(mask).flip()
-        ).doBranchesSolveUniquely();
+        Sudoku p = _config.filter(new SudokuMask(mask).flip());
+        int emptyCells = p.numEmptyCells();
+        p.reduce();
+        return (
+            p.numEmptyCells() == emptyCells &&
+            p.doBranchesSolveUniquely()
+        );
     }
 
     /**
