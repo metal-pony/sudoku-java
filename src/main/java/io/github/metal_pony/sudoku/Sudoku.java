@@ -1775,7 +1775,7 @@ public class Sudoku {
      * Gets an iterator of all solutions, generated sequentially on-demand.
      * @return A Sudoku solution iterator.
      */
-    public Iterable<Sudoku> solutions() {
+    public SolutionIterator solutions() {
         return new SolutionIterator(this);
     }
 
@@ -1785,17 +1785,41 @@ public class Sudoku {
     public static class SolutionIterator implements Iterator<Sudoku>, Iterable<Sudoku> {
         Sudoku root;
         Sudoku next;
-        Stack<SearchNode> stack = new Stack<>();
+        Stack<SearchNode> stack;
+        int solutionCount;
+
+        // Do not allow empty iterator. A sudoku needs to be supplied.
+        private SolutionIterator() {}
 
         public SolutionIterator(Sudoku root) {
-            this.root = new Sudoku(root);
             this.stack = new Stack<>();
-            this.root.resetCandidatesAndValidity();
-            this.root.reduce();
+            reset(root);
+        }
+
+        /**
+         * Resets the solution search back to the initial state.
+         *
+         * NOTE: Because of an element of randomness/guesswork in the search algorithm
+         * (in (1) choosing which cells to test (2) which candidates in), the order
+         * that solutions are found will vary from iteration to iteration.
+         */
+        public void reset() {
+            solutionCount = 0;
+            while (!stack.isEmpty()) stack.pop().recycle();
             SearchNode rootNode = SearchNode.create();
             rootNode.load(root);
-            this.stack.push(rootNode);
+            stack.push(rootNode);
             findNext();
+        }
+
+        /**
+         * Resets the iterator .
+         */
+        public void reset(Sudoku newRoot) {
+            root = new Sudoku(newRoot);
+            root.resetCandidatesAndValidity();
+            root.reduce();
+            reset();
         }
 
         @Override
@@ -1818,6 +1842,7 @@ public class Sudoku {
                     next = new Sudoku(node.sudoku);
                     stack.pop();
                     node.recycle();
+                    solutionCount++;
                     return;
                 } else if (node.hasNext()) {
                     stack.push(node.next(1));
@@ -1832,6 +1857,13 @@ public class Sudoku {
         @Override
         public Iterator<Sudoku> iterator() {
             return this;
+        }
+
+        /**
+         * @return Number of solutions found by the iterator.
+         */
+        public int getSolutionCount() {
+            return solutionCount;
         }
     }
 

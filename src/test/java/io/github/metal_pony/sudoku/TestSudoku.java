@@ -18,6 +18,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.metal_pony.sudoku.Sudoku.SolutionIterator;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
 
@@ -803,13 +804,15 @@ public class TestSudoku {
             Set<String> solutionSet = new HashSet<>();
             int countSolutions = 0;
             long timeStart = System.currentTimeMillis();
-            for (Sudoku solution : p.solutions()) {
+            SolutionIterator iter = p.solutions();
+            for (Sudoku solution : iter) {
                 countSolutions++;
                 solutionSet.add(solution.toString());
             }
             long timeEnd = System.currentTimeMillis();
             assertEquals(0, solutionSet.size());
             assertEquals(0, countSolutions);
+            assertEquals(0, iter.getSolutionCount());
             assertTrue(
                 (timeEnd - timeStart) < 1000L,
                 String.format("Expected no solutions to be found within 1s. Took %dms", (timeEnd - timeStart))
@@ -848,13 +851,16 @@ public class TestSudoku {
         int countSolutions = 0;
         Sudoku puzzle = new Sudoku("...8.1..........435............7.8........1...2..3....6......75..34........2..6..");
         String knownSolution = "237841569186795243594326718315674892469582137728139456642918375853467921971253684";
-        for (Sudoku solution : puzzle.solutions()) {
+        SolutionIterator iter = puzzle.solutions();
+        for (Sudoku solution : iter) {
             countSolutions++;
             solutionSet.add(solution.toString());
             assertEquals(knownSolution, solution.toString());
         }
         assertEquals(1, solutionSet.size());
         assertEquals(1, countSolutions);
+        assertEquals(1, iter.getSolutionCount());
+        assertFalse(iter.hasNext());
     }
 
     @Test
@@ -865,12 +871,15 @@ public class TestSudoku {
             Sudoku puzzle = new Sudoku(puzzleStr);
             int countSolutions = 0;
             solutionSet.clear();
-            for (Sudoku solution : puzzle.solutions()) {
+            SolutionIterator iter = puzzle.solutions();
+            for (Sudoku solution : iter) {
                 countSolutions++;
                 solutionSet.add(solution.toString());
             }
             assertEquals(1, solutionSet.size());
             assertEquals(1, countSolutions);
+            assertEquals(1, iter.getSolutionCount());
+            assertFalse(iter.hasNext());
         }
     }
 
@@ -883,12 +892,14 @@ public class TestSudoku {
             solutionSet.clear();
             int expectedNumSolutions = entry.getValue();
             Sudoku p = new Sudoku(entry.getKey());
-            for (Sudoku solution : p.solutions()) {
+            SolutionIterator iter = p.solutions();
+            for (Sudoku solution : iter) {
                 countSolutions++;
                 solutionSet.add(solution.toString());
             }
             assertEquals(expectedNumSolutions, solutionSet.size());
             assertEquals(expectedNumSolutions, countSolutions);
+            assertEquals(expectedNumSolutions, iter.getSolutionCount());
         }
     }
 
