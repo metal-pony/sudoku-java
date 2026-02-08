@@ -1523,44 +1523,14 @@ public class Sudoku {
      * Helper class used in the search algorithms.
      */
     public static class SearchNode {
-        private static AtomicLong createdCount = new AtomicLong();
-        private static AtomicLong reusedCount = new AtomicLong();
-        private static AtomicLong recycledCount = new AtomicLong();
-
-        private static Stack<SearchNode> nodePool = new Stack<>();
-
-        public static synchronized void stats() {
-            System.out.printf(
-                "SearchNode Pool Stats: Current Size: %d; Created⭐️: %d; Reused💫: %d; Recycled♻️ %d\n",
-                nodePool.size(),
-                createdCount.get(),
-                reusedCount.get(),
-                recycledCount.get()
-            );
-        }
-
-        private static synchronized SearchNode create() {
-            // return nodePool.isEmpty() ? new SearchNode() : nodePool.pop();
-            if (nodePool.isEmpty()) {
-                createdCount.incrementAndGet();
-                return new SearchNode();
-            } else {
-                reusedCount.incrementAndGet();
-                return nodePool.pop();
-            }
-        }
-
-        private static synchronized void recycle(SearchNode node) {
-            // This static stack persists throughout program execution.
-            // TODO Question: Run some adhoc tests and see how large this actually gets.
-            // If very large, consider using weak references.
-            recycledCount.incrementAndGet();
-            nodePool.push(node);
-        }
-
         Sudoku sudoku = new Sudoku();
         int emptyCellIndex = -1;
         int candidates = -1;
+
+        SearchNode() {}
+        SearchNode(Sudoku s) {
+            load(s);
+        }
 
         void load(Sudoku src) {
             sudoku.copyFrom(src);
@@ -1578,8 +1548,7 @@ public class Sudoku {
             // No further branches to try (sudoku is probably invalid or solved).
             if (!hasNext()) return null;
 
-            // Recycle a node if there are any.
-            SearchNode nextNode = SearchNode.create();
+            SearchNode nextNode = new SearchNode();
             nextNode.sudoku.copyFrom(sudoku);
 
             // Pick a random candidate and set it in the next node.
@@ -1596,10 +1565,6 @@ public class Sudoku {
 
         boolean hasNext() {
             return (candidates > 0 && sudoku.isValid);
-        }
-
-        void recycle() {
-            SearchNode.recycle(this);
         }
     }
 
@@ -1630,8 +1595,7 @@ public class Sudoku {
         boolean oneFound = false;
 
         Stack<SearchNode> stack = new Stack<>();
-        SearchNode rootNode = SearchNode.create();
-        rootNode.load(root);
+        SearchNode rootNode = new SearchNode(root);
         stack.push(rootNode);
         while (!stack.isEmpty()) {
             SearchNode top = stack.peek();
@@ -1639,16 +1603,12 @@ public class Sudoku {
                 oneFound = true;
                 if (!solutionCallback.apply(new Sudoku(top.sudoku))) break;
                 stack.pop();
-                top.recycle();
             } else if (top.hasNext()) {
                 stack.push(top.next(1));
             } else {
                 stack.pop();
-                top.recycle();
             }
         }
-
-        while (!stack.isEmpty()) stack.pop().recycle();
 
         if (!oneFound) solutionsFlag = 0;
     }
@@ -1662,14 +1622,12 @@ public class Sudoku {
         if (solutionsFlag == 0) return 0L;
         if (solutionsFlag == 1) return 1L;
 
-        AtomicLong count = new AtomicLong();
-        searchForSolutions((_solution) -> {
-            count.incrementAndGet();
-            return true;
-        });
+        SolutionIterator iter = solutions();
+        while (iter.hasNext()) iter.next();
+        long count = iter.getSolutionCount();
 
-        solutionsFlag = (count.get() >= 2L) ? 2 : count.intValue();
-        return count.get();
+        solutionsFlag = (count >= 2L) ? 2 : (int)count;
+        return count;
     }
 
     /**
@@ -1701,8 +1659,7 @@ public class Sudoku {
         }
 
         Queue<SearchNode> q = new LinkedList<>();
-        SearchNode rootNode = SearchNode.create();
-        rootNode.load(root);
+        SearchNode rootNode = new SearchNode(root);
         q.offer(rootNode);
 
         final int MAX_QUEUE_SIZE = numThreads * numThreads;
@@ -1711,7 +1668,6 @@ public class Sudoku {
 
             if (node.sudoku.isSolved()) {
                 solutionCallback.accept(new Sudoku(node.sudoku));
-                node.recycle();
                 continue;
             }
 
@@ -1730,7 +1686,6 @@ public class Sudoku {
                     solutionCallback.accept(solution);
                     return true;
                 });
-                node.recycle();
             });
         }
 
@@ -1786,7 +1741,7 @@ public class Sudoku {
         Sudoku root;
         Sudoku next;
         Stack<SearchNode> stack;
-        int solutionCount;
+        long solutionCount;
 
         // Do not allow empty iterator. A sudoku needs to be supplied.
         private SolutionIterator() {}
@@ -1804,10 +1759,8 @@ public class Sudoku {
          * that solutions are found will vary from iteration to iteration.
          */
         public void reset() {
-            solutionCount = 0;
-            while (!stack.isEmpty()) stack.pop().recycle();
-            SearchNode rootNode = SearchNode.create();
-            rootNode.load(root);
+            solutionCount = 0L;
+            SearchNode rootNode = new SearchNode(root);
             stack.push(rootNode);
             findNext();
         }
@@ -1841,17 +1794,14 @@ public class Sudoku {
                 if (node.sudoku.isSolved()) {
                     next = new Sudoku(node.sudoku);
                     stack.pop();
-                    node.recycle();
                     solutionCount++;
                     return;
                 } else if (node.hasNext()) {
                     stack.push(node.next(1));
                 } else {
                     stack.pop();
-                    node.recycle();
                 }
             }
-            while (!stack.isEmpty()) stack.pop().recycle();
         }
 
         @Override
@@ -1862,7 +1812,7 @@ public class Sudoku {
         /**
          * @return Number of solutions found by the iterator.
          */
-        public int getSolutionCount() {
+        public long getSolutionCount() {
             return solutionCount;
         }
     }
@@ -1919,8 +1869,7 @@ public class Sudoku {
         }
 
         Stack<SearchNode> stack = new Stack<>();
-        SearchNode rootNode = SearchNode.create();
-        rootNode.load(this);
+        SearchNode rootNode = new SearchNode(this);
         stack.push(rootNode);
         while (!stack.isEmpty()) {
             SearchNode top = stack.peek();
@@ -1930,12 +1879,9 @@ public class Sudoku {
             } else if (top.hasNext()) {
                 stack.push(top.next(0));
             } else {
-                top.recycle();
                 stack.pop();
             }
         }
-
-        while (!stack.isEmpty()) stack.pop().recycle();
 
         return this;
     }
