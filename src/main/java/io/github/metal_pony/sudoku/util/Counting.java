@@ -4,9 +4,11 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 /**
@@ -15,6 +17,7 @@ import java.util.function.Consumer;
  * given collections of objects.
  */
 public class Counting {
+	// Cache of factorials
 	private static List<BigInteger> factMap = new ArrayList<>(Arrays.asList(BigInteger.ONE));
 
 	/**
@@ -46,15 +49,19 @@ public class Counting {
 
 	/**
 	 * Generates a random BigInteger in the interval [0, bound) with the given random generator.
+	 * @param bound Upper bound (exclusive) for the generated number.
+	 * @param rand Random number generator.
+	 * @return Randomly generated large number.
 	 */
 	public static BigInteger random(BigInteger bound, Random rand) {
 		if (bound.compareTo(BigInteger.ZERO) <= 0) {
 			throw new IllegalArgumentException("bound must be positive");
 		}
 
-		BigInteger result = new BigInteger(bound.bitLength(), rand);
+		int nBits = bound.bitLength();
+		BigInteger result = new BigInteger(nBits, rand);
 		while (result.compareTo(bound) >= 0) {
-			result = new BigInteger(bound.bitLength(), rand);
+			result = new BigInteger(nBits, rand);
 		}
 		return result;
 	}
@@ -86,6 +93,9 @@ public class Counting {
 
 	/**
 	 * Computes n choose k.
+	 * @param n Total number of bits in the combination; number of items to choose from.
+	 * @param k Number of bits to be set in the combination; number of choices to make.
+	 * @return n choose k as a BigInt.
 	 */
 	public static BigInteger nChooseK(int n, int k) {
 		if (n < 0 || k < 0 || n < k) {
@@ -102,6 +112,8 @@ public class Counting {
 	/**
 	 * Generates a random combination, choosing k numbers randomly from the interval [0,n).
 	 * The following must be true: <code>n >= k >= 0</code>.
+	 * @param n Total number of bits in the combination; number of items to choose from.
+	 * @param k Number of bits to be set in the combination; number of choices to make.
 	 */
 	public static int[] randomCombo(int n, int k) {
 		if (n < 0 || k < 0 || n < k) {
@@ -116,12 +128,17 @@ public class Counting {
 		return Arrays.copyOfRange(items, 0, k);
 
 		// This is an alternate approach in which a combination is generated via an index r.
+		// It is slightly slower than the shuffling method.
 		// BigInteger r = random(factorial(n), ThreadLocalRandom.current());
 		// return combo(n, k, r);
 	}
 
 	/**
 	 * Generates a subset of k numbers from the interval [0,n), given a number r from [0, n choose k).
+	 * @param n Total number of bits in the combination; number of items to choose from.
+	 * @param k Number of bits to be set in the combination; number of choices to make.
+	 * @param r Index of the combination to build, within the interval [0, nChooseK(n, k)).
+	 * @return Integer array containing the built r'th combination of n choose k items.
 	 */
 	public static int[] combo(int n, int k, BigInteger r) {
 		// validate r
@@ -170,6 +187,10 @@ public class Counting {
 	 * Generates a bitstring (length n) with k bits set.
 	 * If there are (n choose k) possible bitstrings, this generates the r-th.
 	 * Represented as an array of unsigned bytes.
+	 * @param n Total number of bits in the combination; number of items to choose from.
+	 * @param k Number of bits to be set in the combination; number of choices to make.
+	 * @param r Index of the combination to build, within the interval [0, nChooseK(n, k)).
+	 * @return Generated combination of bits as a Byte array.
 	 */
 	public static byte[] bitCombo(int n, int k, BigInteger r) {
 		if (r.compareTo(BigInteger.ZERO) < 0) {
@@ -183,7 +204,7 @@ public class Counting {
 			throw new IllegalArgumentException("r must be in interval [0, (n choose k))");
 		}
 
-		BigInteger _r = new BigInteger(r.toByteArray());
+		BigInteger _r = new BigInteger(1, r.toByteArray());
 		int nBytes = n / Byte.SIZE;
 		int remBits = n % Byte.SIZE;
 		if (remBits > 0) {
@@ -206,6 +227,85 @@ public class Counting {
 		return _result;
 	}
 
+	/**
+	 * Gets the number of bits set within n bits of the given byte array.
+	 * @param n Number of bits to check within the byte array.
+	 * @param arr Byte array to check.
+	 * @return Number of bits set in the byte array, checked up to the nth bit.
+	 */
+	public static int bitCount(int n, byte[] arr) {
+		int k = 0;
+		for (int i = 0; i < n; i++) {
+			int arrIndex = i / Byte.SIZE;
+			int bIndex = i % Byte.SIZE;
+			if ((arr[arrIndex] & (1 << bIndex)) > 0) {
+				k++;
+			}
+		}
+		return k;
+	}
+
+	/**
+	 * Calculates the R (index) value associated with the given bit combination.
+	 * The index can be used to regenerate the combo via `bitCombo(n, k, R)`.
+	 * @param n Number of bits in the bit combination.
+	 * @param combo Bit combination represented as a byte array.
+	 * @return The index of the bit combination as a BigInt.
+	 */
+	// TODO Duplicate method, decide which to remove.
+	// public static BigInteger bitComboToR(int n, byte[] combo) {
+	// 	BigInteger r = BigInteger.ZERO;
+
+	// 	for (int _n = 0, _k = 0; _n < n; _n++) {
+	// 		if ((combo[_n / Byte.SIZE] & (1 << (_n % Byte.SIZE))) > 0) {
+	// 			r = r.add(nChooseK(_n, _k));
+	// 		} else {
+	// 			_k++;
+	// 		}
+	// 	}
+
+	// 	return r;
+	// }
+
+	/**
+	 * Generates an unsigned Long value, representing a bit combination of n bits with k bits set.
+	 * This function offers an alternative when n is small, which is more performant because BigInt arithmetic can be avoided.
+	 * @param n Total number of bits in the combination; number of items to choose from. Must be <= Long.SIZE (64).
+	 * @param k Number of bits to be set in the combination; number of choices to make. Must be <= n.
+	 * @param r Index of the combination to build. Must be <= nChooseK(n, k).
+	 * @return Generated combination of bits as an unsigned Long.
+	 */
+	public static long bitComboLong(int n, int k, long r) {
+		if (r < 0L) throw new IllegalArgumentException("r must be nonnegative");
+		if (n > 64) throw new IllegalArgumentException("n is too large");
+
+		// Throws if n < 0 or k < 0 or n < k
+		long nck = nChooseK(n, k).longValue();
+		if (r >= nck) throw new IllegalArgumentException("r is too large");
+
+		long _result = 0L;
+		int _n = n - 1;
+		int _k = k - 1;
+		long _r = r;
+		for (long mask = (1L << _n); mask > 0L && _k >= 0; mask>>>=1, _n--) {
+			long _nck = nChooseK(_n, _k).longValue();
+			if (_r < _nck) {
+				_result |= mask;
+				_k--;
+			} else {
+				_r -= _nck;
+			}
+		}
+
+		return _result;
+	}
+
+	/**
+	 * Generates a List containing all the bit combinations of n choose k bits, represented as byte arrays.
+	 * @param n Total number of bits in the combinations; number of items to choose from.
+	 * @param k Number of bits to be set in the combinations; number of choices to make. Must be <= n.
+	 * @return A new List containing all n choose k bit combinations.
+	 */
 	public static List<byte[]> allBitCombos(int n, int k) {
 		List<byte[]> result = new ArrayList<>();
 		BigInteger nck = nChooseK(n, k);
@@ -217,13 +317,34 @@ public class Counting {
 		return result;
 	}
 
+	/**
+	 * Generates a random bit combination of n bits, choose k.
+	 * @param n Total number of bits in the combination; number of items to choose from.
+	 * @param k Number of bits to be set in the combination; number of choices to make. Must be <= n.
+	 * @return A bit combination, represented by a BigInt.
+	 */
 	public static BigInteger randomBitCombo(int n, int k) {
 		BigInteger r = random(nChooseK(n, k), new Random());
-		return new BigInteger(bitCombo(n, k, r));
+		return new BigInteger(1, bitCombo(n, k, r));
+	}
+
+	/**
+	 * Generates a random bit combination of n bits, choose k.
+	 * This alternative is useful for smaller values of n (<= 64), because it computes without using BigInt arithmetic.
+	 * @param n Total number of bits in the combination; number of items to choose from.
+	 * @param k Number of bits to be set in the combination; number of choices to make. Must be <= n.
+	 * @return A bit combination, represented by a Long.
+	 */
+	public static long randomBitComboLong(int n, int k) {
+		ThreadLocalRandom rand = ThreadLocalRandom.current();
+		long nck = nChooseK(n, k).longValueExact();
+		return bitComboLong(n, k, rand.nextLong(nck));
 	}
 
 	/**
 	 * Generates a random permutation of the numbers 0 to n.
+	 * @param n Total number of bits in the combinations; number of items to choose from.
+	 * @return Randomly generated permutation as an integer array.
 	 */
 	public static int[] randomPermutation(int n) {
 		if (n < 0) {
@@ -239,6 +360,8 @@ public class Counting {
 
 	/**
 	 * Generates a permutation of the numbers [0,n), given a number r from [0, n!).
+	 * @param n Total number of bits in the permutation; number of items to choose from.
+	 * @param r Index of the permutation to build, within the interval [0, n!).
 	 */
 	public static int[] permutation(int n, BigInteger r) {
 		if (n < 0) {
@@ -264,10 +387,53 @@ public class Counting {
 	}
 
 	// precondition: each element in perms must be unique; and all elements cover integers in [0, perms.length).
-	public static BigInteger permToR(int[] perm) {
+	// TODO
+	private static BigInteger permToR(int[] perm) {
+		// NYI
 		return null;
 	}
 
+	/**
+	 * Calculates the R (index) value associated with the given bit combination.
+	 * The index can be used to regenerate the combo via `bitCombo(n, k, R)`.
+	 * @param n Number of bits in the bit combination.
+	 * @param k Number of bits set in the combination; Must be <= n.
+	 * @param bc Bit combination represented as a byte array.
+	 * @return The index of the bit combination as a BigInt.
+	 */
+	public static BigInteger bitComboToR(int n, int k, byte[] bc) {
+		if (n < 0 || k < 0 || n < k) {
+			throw new IllegalArgumentException("n and k must satisfy 0 <= k <= n");
+		}
+
+		int expectedLength = n / Byte.SIZE + ((n % Byte.SIZE) > 0 ? 1 : 0);
+		if (bc.length != expectedLength) {
+			throw new IllegalArgumentException("byte[] length does not match n");
+		}
+
+		BigInteger r = BigInteger.ZERO;
+		int remaining = k - 1;
+
+		for (int i = n - 1; i >= 0 && remaining >= 0; i--) {
+			int arrIndex = expectedLength - 1 - (i / Byte.SIZE);
+			int bitIndex = i % Byte.SIZE;
+
+			if ((bc[arrIndex] & (1 << bitIndex)) != 0) {
+				remaining--;
+			} else {
+				r = r.add(nChooseK(i, remaining));
+			}
+		}
+
+		return r;
+	}
+
+	/**
+	 * Generates a List of all permutations of n items. Permutations are
+	 * represented as integer arrays with values in the range of 0 to n (exclusive).
+	 * @param n Number of items to permute.
+	 * @return A new List containing all permutations of n items.
+	 */
 	public static List<int[]> allPermutations(int n) {
 		List<int[]> result = new ArrayList<>();
 
@@ -281,6 +447,12 @@ public class Counting {
 		return result;
 	}
 
+	/**
+	 * Iterates through all permutations of n items, performing the
+	 * given callback for each.
+	 * @param n Number of items to permute.
+	 * @param consumer Callback to be invoked for each permutation.
+	 */
 	public static void forEachPermutation(int n, Consumer<int[]> consumer) {
 		BigInteger nFact = factorial(n);
 		BigInteger r = BigInteger.ZERO;
@@ -290,6 +462,13 @@ public class Counting {
 		}
 	}
 
+	/**
+	 * Iterates through all combinations of n items, choose k, performing the
+	 * given callback for each.
+	 * @param n Total number of bits in each combination.
+	 * @param k Number of bits set in each combination; Must be <= n.
+	 * @param consumer Callback to be invoked for each permutation.
+	 */
 	public static void forEachCombo(int n, int k, Consumer<int[]> consumer) {
 		BigInteger nChooseK = nChooseK(n, k);
 		BigInteger r = BigInteger.ZERO;
@@ -299,100 +478,51 @@ public class Counting {
 		}
 	}
 
-	/**
-	 * Generates the next bit combination (`n choose k`) given the current combo, `r`.
-	 * `k` is the number of bits set in `r`.
-	 * The result will be the next bit combination sequentilly after r.
-	 * If `r` is already the last bit combination, this will 'wrap around'
-	 * and return the first bit combination with the lowest-order bits.
-	 * @param n - number of bits
-	 * @param r -
-	 * @returns
-	 */
-	public static byte[] nextBitCombo(int n, byte[] r) {
-		if (n <= 0) {
-			throw new IllegalArgumentException("n must be positive");
-		}
-		int expectedLength = n/8 + ((n%8)>0 ? 1 : 0);
-		if (r.length != expectedLength) {
-			throw new IllegalArgumentException(String.format(
-				"Unexpected r.length (%d, expected %d for n = %d)",
-				r.length, expectedLength, n
-			));
-		}
-		// if (r >= (1n << BigInt(n))) {
-		// 	throw new Error("r too large");
-		// }
+	// TODO NYI
+	private static class BitComboIterator implements Iterator<byte[]>, Iterable<byte[]> {
+		int n;
+		int k;
+		BigInteger r;
+		byte[] bc;
 
-		// Find first '01' scanning right-to-left
-		// (If there isn't any, 'r' is already at the max)
-		int i = 0;
-		while (i < n && ((1<<(i%8)) & r[i/8]) == 0) {
-			i++;
+		BigInteger nck;// = nChooseK(n, k);
+
+		private BitComboIterator() {}
+
+		public BitComboIterator(int n, int k) {
+
 		}
 
-		// For the subsequent string of 1s... move them to the lowest bits.
-		int j = i;
-		while (i < n && ((1<<(i%8)) & r[i/8]) > 0) {
-			r[i/8] ^= (1<<(i%8));
-			// r[j/8] |= (1<<(j%8));
-			i++;
-			// j++;
-		}
-		// Now if i == n, then the bit combo would have 'wrapped around' and started over.
-		// Otherwise, i is at the first 0 following the string of 1s that were flipped,
-		// which should also now flip to 1.
-		if (i < n) {
-			r[i/8] ^= (1<<(i%8));
-			for (int k = 0; k < i - j - 1; k++) {
-				r[k/8] |= (1<<(k%8));
-			}
-		} else {
-			for (int k = 0; k < i - j; k++) {
-				r[k/8] |= (1<<(k%8));
-			}
+		public BitComboIterator(int n, int k, BigInteger r) {
+
 		}
 
+		@Override
+		public Iterator<byte[]> iterator() {
+			// TODO Auto-generated method stub
+			throw new UnsupportedOperationException("Unimplemented method 'iterator'");
+		}
 
-		return r;
+		@Override
+		public boolean hasNext() {
+			// TODO Auto-generated method stub
+			throw new UnsupportedOperationException("Unimplemented method 'hasNext'");
+		}
 
-		// int ri = 0;
-		// // let m = 1n;
-		// // First, fast-forward past any tailing zeros
-		// while (i < n && ((1<<(i%8)) & r[i/8]) == 0) {
-		// 	i++;
-		// 	// m <<= 1n;
-		// }
-		// int tailZeros = i;
+		@Override
+		public byte[] next() {
+			// TODO Auto-generated method stub
+			throw new UnsupportedOperationException("Unimplemented method 'next'");
+		}
 
-		// // Then past the string of 1s
-		// while (i < n && ((1<<(i%8)) & r[i/8]) > 0) {
-		// 	i++;
-		// 	// m <<= 1n;
-		// }
-
-		// At max? Then wrap around to beginning.
-		// if (i >= n) {
-		// 	int nBits = n - tailZeros;
-		// 	i = 0;
-		// 	for (i = 0; i < r.length; i++) {
-		// 		int bitsToSet = (nBits >= 8) ? 8 : nBits;
-		// 		nBits -= bitsToSet;
-		// 		r[i] = (bitsToSet > 0) ? (byte)((1<<bitsToSet) - 1) : 0;
-		// 	}
-		// 	return r;
-		// 	// return (1 << BigInt(nBits)) - 1;
-		// }
-
-		// // Set the bit at i
-		// // Unset the bits to the right of i
-		// r[i/8] |= (1<<(i%8));
-		// r &= (((1 << n) - 1) - (m - 1));
-		// // r += ((m >> BigInt(tailZeros + 1)) - 1n);
-
-		// return r;
 	}
 
+	/**
+	 * Computes n choose k, within the space of a Long value.
+	 * @param n Number of bits in the bit combination; Must be <= Long.SIZE (64).
+	 * @param k Number of bits set in the combination; Must be <= n.
+	 * @return N choose K, as a Long value.
+	 */
 	public static long NChooseKLong(int n, int k) {
 		if (n < 0 || k < 0 || n < k) {
 			throw new IllegalArgumentException("n and k must both be >= 0 and n must be >= k.");
@@ -400,12 +530,18 @@ public class Counting {
 		if (n >= NCHOOSEK_CACHE_LONG.length) {
 			throw new IllegalArgumentException("n out of bounds (max 66).");
 		}
+		if (k == 0 || k == n) {
+			return 1L;
+		}
+		if (k == 1 || k == (n - 1)) {
+			return (long)n;
+		}
 
 		return NCHOOSEK_CACHE_LONG[n][k];
 	}
 
 	/**
-	 * A cache of N choose K that fits within Long.
+	 * A precomputed cache of N choose K values that fits within Long.
 	 */
 	private static long[][] NCHOOSEK_CACHE_LONG = new long[][]{
 		new long[]{1L},
