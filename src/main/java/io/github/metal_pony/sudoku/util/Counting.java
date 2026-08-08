@@ -17,6 +17,8 @@ import java.util.function.Consumer;
  * given collections of objects.
  */
 public class Counting {
+	private Counting() {}
+
 	// Cache of factorials
 	private static List<BigInteger> factMap = new ArrayList<>(Arrays.asList(BigInteger.ONE));
 
@@ -46,6 +48,42 @@ public class Counting {
 
 		return result;
 	}
+
+	/**
+     * Swaps two elements in the given array, by index.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
+	private static void swap(int[] arr, int a, int b) {
+		int temp = arr[a];
+		arr[a] = arr[b];
+		arr[b] = temp;
+	}
+
+	/**
+     * Shuffles the given array in-place.
+     * @param arr Array to shuffle.
+     * @return The given array for convenience.
+     */
+	private static int[] shuffle(int[] arr) {
+		ThreadLocalRandom rand = ThreadLocalRandom.current();
+		for(int i = arr.length - 1; i > 0; i--) {
+			swap(arr, i, rand.nextInt(i + 1));
+		}
+		return arr;
+	}
+
+	/**
+     * Creates a new array with sequential elements from 0 to n, exclusive.
+     * @param n Number of elements to create.
+     * @return New array containing elements from 0 to n.
+     */
+    private static int[] range(int n) {
+        int[] arr = new int[n];
+		for (int i = 0; i < n; i++) arr[i] = i;
+		return arr;
+    }
 
 	/**
 	 * Generates a random BigInteger in the interval [0, bound) with the given random generator.
@@ -114,6 +152,7 @@ public class Counting {
 	 * The following must be true: <code>n >= k >= 0</code>.
 	 * @param n Total number of bits in the combination; number of items to choose from.
 	 * @param k Number of bits to be set in the combination; number of choices to make.
+	 * @return Integer array containing the random combination.
 	 */
 	public static int[] randomCombo(int n, int k) {
 		if (n < 0 || k < 0 || n < k) {
@@ -124,7 +163,7 @@ public class Counting {
 			return new int[0];
 		}
 
-		int[] items = ArraysUtil.shuffle(ArraysUtil.range(n));
+		int[] items = shuffle(range(n));
 		return Arrays.copyOfRange(items, 0, k);
 
 		// This is an alternate approach in which a combination is generated via an index r.
@@ -270,9 +309,9 @@ public class Counting {
 	/**
 	 * Generates an unsigned Long value, representing a bit combination of n bits with k bits set.
 	 * This function offers an alternative when n is small, which is more performant because BigInt arithmetic can be avoided.
-	 * @param n Total number of bits in the combination; number of items to choose from. Must be <= Long.SIZE (64).
-	 * @param k Number of bits to be set in the combination; number of choices to make. Must be <= n.
-	 * @param r Index of the combination to build. Must be <= nChooseK(n, k).
+	 * @param n Total number of bits in the combination; number of items to choose from. Must be &lt; Long.SIZE (64).
+	 * @param k Number of bits to be set in the combination; number of choices to make. Must be &lt; n.
+	 * @param r Index of the combination to build. Must be &lt; nChooseK(n, k).
 	 * @return Generated combination of bits as an unsigned Long.
 	 */
 	public static long bitComboLong(int n, int k, long r) {
@@ -303,7 +342,7 @@ public class Counting {
 	/**
 	 * Generates a List containing all the bit combinations of n choose k bits, represented as byte arrays.
 	 * @param n Total number of bits in the combinations; number of items to choose from.
-	 * @param k Number of bits to be set in the combinations; number of choices to make. Must be <= n.
+	 * @param k Number of bits to be set in the combinations; number of choices to make. Must be &lt; n.
 	 * @return A new List containing all n choose k bit combinations.
 	 */
 	public static List<byte[]> allBitCombos(int n, int k) {
@@ -320,7 +359,7 @@ public class Counting {
 	/**
 	 * Generates a random bit combination of n bits, choose k.
 	 * @param n Total number of bits in the combination; number of items to choose from.
-	 * @param k Number of bits to be set in the combination; number of choices to make. Must be <= n.
+	 * @param k Number of bits to be set in the combination; number of choices to make. Must be &lt; n.
 	 * @return A bit combination, represented by a BigInt.
 	 */
 	public static BigInteger randomBitCombo(int n, int k) {
@@ -330,9 +369,9 @@ public class Counting {
 
 	/**
 	 * Generates a random bit combination of n bits, choose k.
-	 * This alternative is useful for smaller values of n (<= 64), because it computes without using BigInt arithmetic.
+	 * This alternative is useful for smaller values of n (&lt; 64), because it computes without using BigInt arithmetic.
 	 * @param n Total number of bits in the combination; number of items to choose from.
-	 * @param k Number of bits to be set in the combination; number of choices to make. Must be <= n.
+	 * @param k Number of bits to be set in the combination; number of choices to make. Must be &lt;= n.
 	 * @return A bit combination, represented by a Long.
 	 */
 	public static long randomBitComboLong(int n, int k) {
@@ -351,7 +390,7 @@ public class Counting {
 			throw new IllegalArgumentException("n must be nonnegative");
 		}
 
-		return ArraysUtil.shuffle(ArraysUtil.range(n));
+		return shuffle(range(n));
 
 		// This is an alternate approach in which a permutation is generated via an index r.
 		// BigInteger r = random(factorial(n), ThreadLocalRandom.current());
@@ -362,6 +401,7 @@ public class Counting {
 	 * Generates a permutation of the numbers [0,n), given a number r from [0, n!).
 	 * @param n Total number of bits in the permutation; number of items to choose from.
 	 * @param r Index of the permutation to build, within the interval [0, n!).
+	 * @return The generated permutation.
 	 */
 	public static int[] permutation(int n, BigInteger r) {
 		if (n < 0) {
@@ -369,7 +409,7 @@ public class Counting {
 		}
 
 		int[] result = new int[n];
-		int[] items = ArraysUtil.range(n);
+		int[] items = range(n);
 
 		for (int i = 0; i < n; i++) {
 			r = r.mod(factorial(n - i));
@@ -397,7 +437,7 @@ public class Counting {
 	 * Calculates the R (index) value associated with the given bit combination.
 	 * The index can be used to regenerate the combo via `bitCombo(n, k, R)`.
 	 * @param n Number of bits in the bit combination.
-	 * @param k Number of bits set in the combination; Must be <= n.
+	 * @param k Number of bits set in the combination; Must be &lt; n.
 	 * @param bc Bit combination represented as a byte array.
 	 * @return The index of the bit combination as a BigInt.
 	 */
@@ -466,7 +506,7 @@ public class Counting {
 	 * Iterates through all combinations of n items, choose k, performing the
 	 * given callback for each.
 	 * @param n Total number of bits in each combination.
-	 * @param k Number of bits set in each combination; Must be <= n.
+	 * @param k Number of bits set in each combination; Must be &lt; n.
 	 * @param consumer Callback to be invoked for each permutation.
 	 */
 	public static void forEachCombo(int n, int k, Consumer<int[]> consumer) {
@@ -519,8 +559,8 @@ public class Counting {
 
 	/**
 	 * Computes n choose k, within the space of a Long value.
-	 * @param n Number of bits in the bit combination; Must be <= Long.SIZE (64).
-	 * @param k Number of bits set in the combination; Must be <= n.
+	 * @param n Number of bits in the bit combination; Must be &lt; Long.SIZE (64).
+	 * @param k Number of bits set in the combination; Must be &lt; n.
 	 * @return N choose K, as a Long value.
 	 */
 	public static long NChooseKLong(int n, int k) {
