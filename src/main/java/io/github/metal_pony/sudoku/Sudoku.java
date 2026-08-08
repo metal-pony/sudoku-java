@@ -281,109 +281,6 @@ public class Sudoku {
     }
 
     /**
-     * Rotates a given square matrix array 90 degrees clockwise.
-     * @param arr The NxN matrix to rotate, as a single array.
-     * @param n Length of one of the sides.
-     * @return The mutated array.
-     * @throws IllegalArgumentException if the array length is not n^2.
-     */
-    public static int[] rotate90(int[] arr, int n) {
-        if (arr == null) throw new NullPointerException();
-        if (n < 0) throw new IllegalArgumentException("n must be nonnegative");
-        if (arr.length != n * n) throw new IllegalArgumentException("arr length not n square");
-        for (int layer = 0; layer < n / 2; layer++) {
-            int first = layer;
-            int last = n - 1 - layer;
-            for (int i = first; i < last; i++) {
-                int offset = i - first;
-                int top = arr[first * n + i];
-                arr[first * n + i] = arr[(last - offset) * n + first];
-                arr[(last - offset) * n + first] = arr[last * n + (last - offset)];
-                arr[last * n + (last - offset)] = arr[i * n + last];
-                arr[i * n + last] = top;
-            }
-        }
-        return arr;
-    }
-
-    /**
-     * Reflects a (rows x N) matrix over the horizontal axis.
-     * @param arr The matrix to reflect.
-     * @param rows The number of rows in the matrix.
-     * @return The mutated array.
-     * @throws IllegalArgumentException if (array length / rows) is not a whole number.
-     */
-    public static int[] reflectOverHorizontal(int[] arr, int rows) {
-        if (arr == null) throw new NullPointerException();
-        if (rows <= 0) throw new IllegalArgumentException("rows must be positive");
-        if (arr.length % rows != 0) throw new IllegalArgumentException("array length must be divisible by number of rows");
-        int cols = arr.length / rows;
-        for (int r = 0; r < (rows / 2); r++) {
-            for (int c = 0; c < cols; c++) {
-                int ai = r * cols + c;
-                int bi = (rows - r - 1) * cols + c;
-                arr[ai] ^= arr[bi];
-                arr[bi] ^= arr[ai];
-                arr[ai] ^= arr[bi];
-            }
-        }
-        return arr;
-    }
-
-    /**
-     * Reflects a (rows x N) matrix over the vertical axis.
-     * @param arr The matrix to reflect.
-     * @param rows The number of rows in the matrix.
-     * @return The mutated array.
-     * @throws IllegalArgumentException if (array length / rows) is not a whole number.
-     */
-    public static int[] reflectOverVertical(int[] arr, int rows) {
-        if (arr == null) throw new NullPointerException();
-        if (rows <= 0) throw new IllegalArgumentException("rows must be positive");
-        if (arr.length % rows != 0) throw new IllegalArgumentException("array length must be divisible by number of rows");
-        int cols = arr.length / rows;
-        for (int c = 0; c < (cols / 2); c++) {
-            for (int r = 0; r < rows; r++) {
-                int ai = r * cols + c;
-                int bi = r * cols + (cols - c - 1);
-                arr[ai] ^= arr[bi];
-                arr[bi] ^= arr[ai];
-                arr[ai] ^= arr[bi];
-            }
-        }
-        return arr;
-    }
-
-    /**
-     * Reflects a given square matrix over the diagonal (line from bottomleft - topright).
-     * @param arr The NxN matrix to reflect.
-     * @param n Length of one of the sides.
-     * @return The mutated array.
-     * @throws IllegalArgumentException if the array length is not n^2.
-     */
-    public static int[] reflectOverDiagonal(int[] arr, int n) {
-        if (arr == null) throw new NullPointerException();
-        if (n < 0) throw new IllegalArgumentException("n must be nonnegative");
-        if (arr.length != n * n) throw new IllegalArgumentException("arr length not n square");
-        reflectOverVertical(arr, n);
-        rotate90(arr, n);
-        return arr;
-    }
-
-    /**
-     * Reflects a given square matrix over the anti-diagonal (line from topleft - bottomright).
-     * @param arr The NxN matrix to reflect.
-     * @param n Length of one of the sides.
-     * @return The mutated array.
-     * @throws IllegalArgumentException if the array length is not n^2.
-     */
-    public static int[] reflectOverAntiDiagonal(int[] arr, int n) {
-        rotate90(arr, n);
-        reflectOverVertical(arr, n);
-        return arr;
-    }
-
-    /**
      * Swaps the specified bands of the sudoku array.
      * @param arr Sudoku board array.
      * @param bandIndexA Band index.
@@ -2066,8 +1963,8 @@ public class Sudoku {
         // Normalize turns to be within [0, 3]
         turns = ((turns % 4) + 4) % 4;
         for (int t = 0; t < turns; t++) {
-            rotate90(candidates, DIGITS);
-            rotate90(digits, DIGITS);
+            ArraysUtil.rotate90(candidates, DIGITS);
+            ArraysUtil.rotate90(digits, DIGITS);
         }
         return this;
     }
@@ -2078,8 +1975,8 @@ public class Sudoku {
      * @return This sudoku.
      */
     public Sudoku reflectHorizontal() {
-        reflectOverHorizontal(candidates, DIGITS);
-        reflectOverHorizontal(digits, DIGITS);
+        ArraysUtil.reflectOverHorizontal(candidates, DIGITS);
+        ArraysUtil.reflectOverHorizontal(digits, DIGITS);
         return this;
     }
 
@@ -2089,8 +1986,8 @@ public class Sudoku {
      * @return This sudoku.
      */
     public Sudoku reflectVertical() {
-        reflectOverVertical(candidates, DIGITS);
-        reflectOverVertical(digits, DIGITS);
+        ArraysUtil.reflectOverVertical(candidates, DIGITS);
+        ArraysUtil.reflectOverVertical(digits, DIGITS);
         return this;
     }
 
@@ -2100,8 +1997,8 @@ public class Sudoku {
      * @return This sudoku.
      */
     public Sudoku reflectDiagonal() {
-        reflectOverDiagonal(candidates, DIGITS);
-        reflectOverDiagonal(digits, DIGITS);
+        ArraysUtil.reflectOverDiagonal(candidates, DIGITS);
+        ArraysUtil.reflectOverDiagonal(digits, DIGITS);
         return this;
     }
 
@@ -2111,8 +2008,8 @@ public class Sudoku {
      * @return This sudoku.
      */
     public Sudoku reflectAntiDiagonal() {
-        reflectOverAntiDiagonal(candidates, DIGITS);
-        reflectOverAntiDiagonal(digits, DIGITS);
+        ArraysUtil.reflectOverAntiDiagonal(candidates, DIGITS);
+        ArraysUtil.reflectOverAntiDiagonal(digits, DIGITS);
         return this;
     }
 
