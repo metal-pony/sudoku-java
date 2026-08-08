@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import static io.github.metal_pony.sudoku.Constants.*;
+
 public class SudokuSieve {
     private static class ItemGroup {
         final int order;
@@ -40,11 +42,11 @@ public class SudokuSieve {
 
         this.board = config.toArray();
         this._config = new Sudoku(this.board);
-        this._itemGroupsByBitCount = new ArrayList<>(Sudoku.SPACES + 1);
-        for (int n = 0; n <= Sudoku.SPACES; n++) {
+        this._itemGroupsByBitCount = new ArrayList<>(SPACES + 1);
+        for (int n = 0; n <= SPACES; n++) {
             this._itemGroupsByBitCount.add(n, new ItemGroup(n));
         }
-        this.reductionMatrix = new int[Sudoku.SPACES];
+        this.reductionMatrix = new int[SPACES];
     }
 
     /**
@@ -111,14 +113,17 @@ public class SudokuSieve {
      * Maps sudoku cell indices to the number of times the cell appears among sieve items.
      */
     public synchronized int[] reductionMatrix() {
-        return reductionMatrix(new int[Sudoku.SPACES]);
+        return reductionMatrix(new int[SPACES]);
     }
 
     /**
      * Maps sudoku cell indices to the number of times the cell appears among sieve items.
      */
     public synchronized int[] reductionMatrix(int[] arr) {
-        System.arraycopy(reductionMatrix, 0, arr, 0, Sudoku.SPACES);
+        if (arr.length != reductionMatrix.length) {
+            throw new IllegalArgumentException("arr improper length");
+        }
+        System.arraycopy(reductionMatrix, 0, arr, 0, reductionMatrix.length);
         return arr;
     }
 
@@ -178,7 +183,7 @@ public class SudokuSieve {
      * @throws IllegalArgumentException If numClues is out of range.
      */
     public List<SudokuMask> getItemByNumClues(int numClues) {
-        if (numClues < 0 || numClues > Sudoku.SPACES) {
+        if (numClues < 0 || numClues > SPACES) {
             throw new IllegalArgumentException("Invalid number of clues");
         }
         List<SudokuMask> results = new ArrayList<>();
@@ -199,12 +204,12 @@ public class SudokuSieve {
         if (level < 2 || level > 4) throw new IllegalArgumentException("Invalid level");
 
         List<SudokuMask> combos = new ArrayList<>();
-        for (int combo : Sudoku.DIGIT_COMBOS_MAP[level]) {
+        for (int combo : DIGIT_COMBOS_MAP[level]) {
             SudokuMask rowMask = new SudokuMask();
             SudokuMask colMask = new SudokuMask();
             SudokuMask regionMask = new SudokuMask();
 
-            for (int ci = 0; ci < Sudoku.SPACES; ci++) {
+            for (int ci = 0; ci < SPACES; ci++) {
                 if ((combo & (1 << Sudoku.cellRow(ci))) > 0) {
                     rowMask.setBit(ci);
                 }
@@ -229,10 +234,10 @@ public class SudokuSieve {
 
         List<SudokuMask> combos = new ArrayList<>();
         int[] board = _config.toArray();
-        for (int combo : Sudoku.DIGIT_COMBOS_MAP[level]) {
+        for (int combo : DIGIT_COMBOS_MAP[level]) {
             SudokuMask digMask = new SudokuMask();
 
-            for (int ci = 0; ci < Sudoku.SPACES; ci++) {
+            for (int ci = 0; ci < SPACES; ci++) {
                 if ((combo & (1 << (board[ci]) - 1)) > 0) {
                     digMask.setBit(ci);
                 }
@@ -317,7 +322,7 @@ public class SudokuSieve {
      * @param item Mask of the item to add.
      */
     synchronized void addToReductionMatrix(SudokuMask item) {
-        for (int i = 0; i < Sudoku.SPACES; i++) {
+        for (int i = 0; i < SPACES; i++) {
             if (item.testBit(i)) {
                 reductionMatrix[i]++;
             }
@@ -329,7 +334,7 @@ public class SudokuSieve {
      * @param item Mask of the item to subtract.
      */
     synchronized void subtractFromReductionMatrix(SudokuMask item) {
-        for (int i = 0; i < Sudoku.SPACES; i++) {
+        for (int i = 0; i < SPACES; i++) {
             if (item.testBit(i)) {
                 reductionMatrix[i]--;
             }

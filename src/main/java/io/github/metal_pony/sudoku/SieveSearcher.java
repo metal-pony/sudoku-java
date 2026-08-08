@@ -11,6 +11,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 
+import static io.github.metal_pony.sudoku.Constants.*;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 
 public class SieveSearcher {
@@ -429,7 +430,7 @@ public class SieveSearcher {
   }
 
   public void minsearch() {
-    this.maxClues = Sudoku.SPACES;
+    this.maxClues = SPACES;
     long sieveSize = sieve.size();
 
     // This is functioning as the choice Stack.

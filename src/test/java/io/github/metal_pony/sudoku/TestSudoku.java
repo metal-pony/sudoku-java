@@ -18,6 +18,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.github.metal_pony.sudoku.Constants.*;
 import io.github.metal_pony.sudoku.Sudoku.SolutionIterator;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
@@ -519,7 +520,7 @@ public class TestSudoku {
             assertTrue(p.isValid());
             assertFalse(p.isSolved());
             assertEquals(24, p.numClues());
-            assertEquals(Sudoku.SPACES - 24, p.numEmptyCells());
+            assertEquals(SPACES - 24, p.numEmptyCells());
             assertFalse(p.isFull());
             assertFalse(p.isEmpty());
         }
@@ -527,7 +528,7 @@ public class TestSudoku {
         // for (String pStr : ) {
             assertTrue(configFixture.isValid());
             assertTrue(configFixture.isSolved());
-            assertEquals(Sudoku.SPACES, configFixture.numClues());
+            assertEquals(SPACES, configFixture.numClues());
             assertEquals(0, configFixture.numEmptyCells());
             assertTrue(configFixture.isFull());
             assertFalse(configFixture.isEmpty());
@@ -1303,8 +1304,8 @@ public class TestSudoku {
     }
 
     private void populateSieveForAllDigitCombos(int level) {
-        for (int r = Sudoku.DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
-            SudokuMask pMask = configFixture.maskForDigits(Sudoku.DIGIT_COMBOS_MAP[level][r]);
+        for (int r = DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
+            SudokuMask pMask = configFixture.maskForDigits(DIGIT_COMBOS_MAP[level][r]);
             configFixtureSieve.addFromFilter(pMask);
         }
     }

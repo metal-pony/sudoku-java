@@ -8,6 +8,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import static io.github.metal_pony.sudoku.Constants.*;
+
 public class DisjointSetsMap extends SetArray<SudokuMask> {
     static class DjNode {
       // The number of UAs this mask contains
@@ -44,7 +46,7 @@ public class DisjointSetsMap extends SetArray<SudokuMask> {
     Sudoku grid;
 
     public DisjointSetsMap(Sudoku grid) {
-      super(Sudoku.SPACES);
+      super(SPACES);
       this.grid = grid;
     }
 

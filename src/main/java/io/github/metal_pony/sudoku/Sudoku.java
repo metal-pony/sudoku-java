@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static io.github.metal_pony.sudoku.Constants.*;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
-import io.github.metal_pony.sudoku.util.Counting;
 
 /**
  * A Sudoku instance manages the state of a standard 9x9 sudoku board,
@@ -31,16 +31,6 @@ import io.github.metal_pony.sudoku.util.Counting;
  * @author Jeff Gibson, github.com/metal-pony
  */
 public class Sudoku {
-    public static final int RANK = 3;
-    /** Number of digits in standard 9x9 sudoku.*/
-    public static final int DIGITS = 9; // rank^2
-    /** Number of spaces or cells on a standard sudoku board.*/
-    public static final int SPACES = 81; // rank^2^2
-    /** Represents the combination of all candidates for a cell (0x1ff).*/
-    public static final int ALL = 511; // 2^rank^2 - 1
-    /** Minumum number of clues required for a valid sudoku puzzle.*/
-    public static final int MIN_CLUES = 17; // rank^2 * 2 - 1
-
     /*
      * Masks for working with 27-bit constraints values.
      */
@@ -58,60 +48,11 @@ public class Sudoku {
      */
     static final int FULL_CONSTRAINTS = ROW_MASK | COL_MASK | REGION_MASK;
 
-    /** Maps digits (as the index) to a 9-bit encoded values.*/
-    static final int[] ENCODER = new int[] { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256 };
     /**
-     * Maps the 9-bit encoded values (as the index) to the associated digit.
-     * NOTE: Values that represent more than one digit are mapped to 0.
-     * Powers of 2 map to digits 1 through 9.
+     * Gets the 9-bit encoded value of the given digit.
+     * @param digit Digit to encode (1-9).
+     * @return 9-bit encoded value (1-512).
      */
-    static final int[] DECODER = new int[1<<DIGITS];
-    static {
-        for (int d = 1; d <= DIGITS; d++) DECODER[1 << (d - 1)] = d;
-    }
-
-    /** Maps encoded values to the array of individual digits it represents.*/
-    static final int[][] CANDIDATES = new int[1<<DIGITS][];
-
-    /** Maps encoded values to the array of individual digits (encoded) it represents.*/
-    static final int[][] CANDIDATES_ENC = new int[CANDIDATES.length][];
-    static {
-        for (int encoded = 0; encoded < CANDIDATES.length; encoded++) {
-            CANDIDATES[encoded] = new int[Integer.bitCount(encoded)];
-            CANDIDATES_ENC[encoded] = new int[Integer.bitCount(encoded)];
-            int _val = encoded;
-            int i = 0;
-            int j = 0;
-            int digit = 1;
-            while (_val > 0) {
-                if ((_val & 1) > 0) {
-                    CANDIDATES[encoded][i++] = digit;
-                    CANDIDATES_ENC[encoded][j++] = ENCODER[digit];
-                }
-                _val >>= 1;
-                digit++;
-            }
-        }
-    }
-
-    /** Maps indices [0, 511] to its bit count.*/
-    static final int[] BIT_COUNT_MAP = new int[1<<DIGITS];
-
-    /** Digit combinations indexed by bit count (aka digit count).*/
-    static final int[][] DIGIT_COMBOS_MAP = new int[DIGITS + 1][];
-    static {
-        for (int nDigits = 0; nDigits < DIGIT_COMBOS_MAP.length; nDigits++) {
-            DIGIT_COMBOS_MAP[nDigits] = new int[Counting.nChooseK(DIGITS, nDigits).intValueExact()];
-        }
-        int[] combosCount = new int[DIGITS + 1];
-        for (int i = 0; i < BIT_COUNT_MAP.length; i++) {
-            int bits = Integer.bitCount(i);
-            BIT_COUNT_MAP[i] = bits;
-            DIGIT_COMBOS_MAP[bits][combosCount[bits]++] = i;
-        }
-    }
-
-    /** Gets the 9-bit encoded value of the given digit.*/
     public static int encode(int digit) {
         return ENCODER[digit];
     }
@@ -151,134 +92,6 @@ public class Sudoku {
         // int regionCol = (cellIndex % DIGITS) / RANK;
         // return (regionRow * RANK) + regionCol;
         return CELL_REGIONS[cellIndex];
-    }
-
-    /** Maps cell indices to respective rows.*/
-    private static final int[] CELL_ROWS = new int[]{
-        0, 0, 0,  0, 0, 0,  0, 0, 0,
-        1, 1, 1,  1, 1, 1,  1, 1, 1,
-        2, 2, 2,  2, 2, 2,  2, 2, 2,
-
-        3, 3, 3,  3, 3, 3,  3, 3, 3,
-        4, 4, 4,  4, 4, 4,  4, 4, 4,
-        5, 5, 5,  5, 5, 5,  5, 5, 5,
-
-        6, 6, 6,  6, 6, 6,  6, 6, 6,
-        7, 7, 7,  7, 7, 7,  7, 7, 7,
-        8, 8, 8,  8, 8, 8,  8, 8, 8
-    };
-    /** Maps cell indices to respective columns.*/
-    private static final int[] CELL_COLS = new int[]{
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-        0, 1, 2,  3, 4, 5,  6, 7, 8,
-        0, 1, 2,  3, 4, 5,  6, 7, 8
-    };
-    /** Maps cell indices to respective regions.*/
-    private static final int[] CELL_REGIONS = new int[]{
-        0, 0, 0,  1, 1, 1,  2, 2, 2,
-        0, 0, 0,  1, 1, 1,  2, 2, 2,
-        0, 0, 0,  1, 1, 1,  2, 2, 2,
-
-        3, 3, 3,  4, 4, 4,  5, 5, 5,
-        3, 3, 3,  4, 4, 4,  5, 5, 5,
-        3, 3, 3,  4, 4, 4,  5, 5, 5,
-
-        6, 6, 6,  7, 7, 7,  8, 8, 8,
-        6, 6, 6,  7, 7, 7,  8, 8, 8,
-        6, 6, 6,  7, 7, 7,  8, 8, 8
-    };
-    /** Maps row indices to an array of cell indices (cells in the given row).*/
-    static final int[][] ROW_INDICES = new int[DIGITS][DIGITS];
-    /** Maps column indices to an array of cell indices (cells in the given column).*/
-    static final int[][] COL_INDICES = new int[DIGITS][DIGITS];
-    /** Maps region indices to an array of cell indices (cells in the given region).*/
-    static final int[][] REGION_INDICES = new int[DIGITS][DIGITS];
-    /** Maps band indices to an array of cell indices (cells in the given band).*/
-    static final int[][] BAND_INDICES = new int[3][3*DIGITS];
-    /** Maps stack indices to an array of cell indices (cells in the given stack).*/
-    static final int[][] STACK_INDICES = new int[3][3*DIGITS];
-    /**
-     * Maps row indices withing a band to an array of cell indices (cells in the given band's row).
-     * <br><br><code>BAND_ROW_INDICES[band 0-2][row 0-2] = [... cell indices]</code>
-     */
-    static final int[][][] BAND_ROW_INDICES = new int[3][3][DIGITS];
-    /**
-     * Maps column indices withing a stack to an array of cell indices (cells in the given stack's column).
-     * <br><br><code>STACK_COL_INDICES[stack 0-2][col 0-2] = [... cell indices]</code>
-     */
-    static final int[][][] STACK_COL_INDICES = new int[3][3][DIGITS];
-    static {
-        int[] rowi = new int[DIGITS];
-        int[] coli = new int[DIGITS];
-        int[] regi = new int[DIGITS];
-        for (int i = 0; i < SPACES; i++) {
-            int row = cellRow(i);
-            int col = cellCol(i);
-            int region = cellRegion(i);
-
-            ROW_INDICES[row][rowi[row]++] = i;
-            COL_INDICES[col][coli[col]++] = i;
-            REGION_INDICES[region][regi[region]++] = i;
-
-            int band = row / RANK;
-            int rowInBand = row % RANK;
-            int stack = col / RANK;
-            int colInStack = col % RANK;
-            int indexInBand = i % (DIGITS * RANK);
-            int indexInStack = (row * RANK) + colInStack;
-            BAND_INDICES[band][indexInBand] = i;
-            STACK_INDICES[stack][indexInStack] = i;
-            BAND_ROW_INDICES[band][rowInBand][col] = i;
-            STACK_COL_INDICES[stack][colInStack][row] = i;
-        }
-    }
-    /** Maps cells indices to the other cell indices within the same row.*/
-    static int[][] ROW_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    /** Maps cells indices to the other cell indices within the same column.*/
-    static int[][] COL_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    /** Maps cells indices to the other cell indices within the same region.*/
-    static int[][] REGION_NEIGHBORS = new int[SPACES][DIGITS - 1];
-    /** Maps cells indices to all other cell indices within the same row, column, and region.*/
-    static int[][] CELL_NEIGHBORS = new int[SPACES][3*(DIGITS-1) - (DIGITS-1)/2];
-    static {
-        for (int i = 0; i < SPACES; i++) {
-            int row = cellRow(i);
-            int col = cellCol(i);
-            int region = cellRegion(i);
-
-            int ri = 0;
-            int coli = 0;
-            int regi = 0;
-            int ni = 0;
-
-            for (int j = 0; j < SPACES; j++) {
-                if (i == j) continue;
-                int jrow = cellRow(j);
-                int jcol = cellCol(j);
-                int jregion = cellRegion(j);
-
-                if (jrow == row) {
-                    ROW_NEIGHBORS[i][ri++] = j;
-                }
-                if (jcol == col) {
-                    COL_NEIGHBORS[i][coli++] = j;
-                }
-                if (jregion == region) {
-                    REGION_NEIGHBORS[i][regi++] = j;
-                }
-                if (jrow == row || jcol == col || jregion == region) {
-                    CELL_NEIGHBORS[i][ni++] = j;
-                }
-            }
-        }
     }
 
     /**
@@ -649,7 +462,7 @@ public class Sudoku {
         if (colA == colB) return arr;
         if (stackIndex < 0 || colA < 0 || colB < 0 || stackIndex > 2 || colA > 2 || colB > 2)
             throw new IllegalArgumentException("swapStackCols error, specified stack or col(s) out of bounds");
-        for (int i = 0; i < Sudoku.DIGITS; i++) {
+        for (int i = 0; i < DIGITS; i++) {
             int ii = STACK_COL_INDICES[stackIndex][colA][i];
             int jj = STACK_COL_INDICES[stackIndex][colB][i];
 

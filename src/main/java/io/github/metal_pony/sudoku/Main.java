@@ -16,6 +16,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.github.metal_pony.sudoku.Constants.*;
 import io.github.metal_pony.sudoku.util.Counting;
 
 public class Main {
@@ -145,19 +146,19 @@ public class Main {
     }
 
     int prev2 = 0;
-    for (int ci = 0; ci < Sudoku.SPACES / 2; ci++) {
+    for (int ci = 0; ci < SPACES / 2; ci++) {
       prev1 = test.getDigit(ci);
       if (prev1 > 0) {
-        prev2 = test.getDigit(Sudoku.SPACES - ci - 1);
+        prev2 = test.getDigit(SPACES - ci - 1);
         test.clearCell(ci);
-        test.clearCell(Sudoku.SPACES - ci - 1);
+        test.clearCell(SPACES - ci - 1);
         flag = test.solutionsFlag();
         if (flag == 1) {
           // verboseOutf("❌ %s\n", test.toString());
           return false;
         }
         test.setDigit(ci, prev1);
-        test.setDigit(Sudoku.SPACES - ci - 1, prev2);
+        test.setDigit(SPACES - ci - 1, prev2);
       }
     }
 
@@ -166,7 +167,7 @@ public class Main {
 
   private static void wip_1() {
     final int clues = 27; //args.cluesOrDefault(24);
-    // if (clues < Sudoku.MIN_CLUES || clues > Sudoku.SPACES) {
+    // if (clues < MIN_CLUES || clues > SPACES) {
     //   throw new IllegalArgumentException("clues out of range");
     // }
 
