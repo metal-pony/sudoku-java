@@ -1084,6 +1084,60 @@ public class Sudoku {
     }
 
     /**
+     * Generates a random palindrome puzzle with the specified number of clues.
+     * @param numClues Number of clues to be on the puzzle.
+     * @return A new Sudoku puzzle.
+     */
+    public static Sudoku generatePalindromePuzzle(int numClues) {
+        Sudoku puzzle = null;
+        Sudoku solution = Sudoku.generateConfig();
+        SudokuMask mask = new SudokuMask();
+        SudokuSieve sieve = new SudokuSieve(solution);
+        if (numClues < 31) {
+            sieve.seedThreaded(sieve.fullPrintCombos(2));
+        } else if (numClues < 25) {
+            // sieve.seedThreaded(sieve.fullPrintCombos(3));
+        }
+        // boolean sieveSatisfied = false;
+        int sieveTests = 0;
+        int puzzleTests = 0;
+        int flag = 2;
+        while (flag != 1) {
+            // if (puzzleTests == 100) {
+            //     sieve.seedThreaded(sieve.fullPrintCombos(2));
+            // } else if (puzzleTests == 2000) {
+            //     sieve.seedThreaded(sieve.fullPrintCombos(3));
+            // }
+
+            do {
+                mask.randomPalindrome(numClues);
+                sieveTests++;
+            } while (!sieve.doesMaskSatisfy(mask));
+
+            puzzle = solution.filter(mask);
+            // flag = puzzle.solutionsFlag();
+            AtomicInteger solutionCount = new AtomicInteger();
+            puzzle.searchForSolutions(s -> {
+                sieve.add(solution.diffMask(s));
+                return solutionCount.incrementAndGet() < 4;
+            });
+
+            flag = solutionCount.get() == 1 ? 1 : 2;
+            puzzleTests++;
+        }
+
+        System.out.printf(
+            "[sieveTests %8d] [puzzleTests %8d] [sieve size %5d] %s\n",
+            sieveTests,
+            puzzleTests,
+            sieve.size(),
+            puzzle.toString()
+        );
+
+        return puzzle;
+    }
+
+    /**
      * Generates a puzzle with the given number of clues.
      * Not recommended to attempt puzzle generation with less than 21 clues.
      * @param clues Target number of clues on the puzzle to be generated.
