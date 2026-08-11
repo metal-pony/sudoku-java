@@ -1,5 +1,6 @@
 package io.github.metal_pony.sudoku;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -525,7 +526,7 @@ public class Sudoku {
                 if (i < 80) {
                     // Border between region rows
                     if (((((i+1)/9)%3) == 0) && (((i/9)%8) != 0)) {
-                        strb.append("------+-------+------");
+                        strb.append("------+-------+------ ");
                         strb.append(lineSep);
                     }
                 }
@@ -534,6 +535,212 @@ public class Sudoku {
 
         return strb.toString();
     }
+
+    private static class PuzzleSearchNode {
+        Sudoku sudoku = new Sudoku();
+        SudokuMask mask;
+        int emptyCellIndex = -1;
+        int candidates = -1;
+
+        // PuzzleSearchNode() {}
+        PuzzleSearchNode(Sudoku src, SudokuMask m) {
+            mask = m;
+            load(src);
+        }
+        PuzzleSearchNode(PuzzleSearchNode other) {
+            this.mask = other.mask;
+            sudoku.copyFrom(other.sudoku);
+            this.emptyCellIndex = other.emptyCellIndex;
+            this.candidates = other.candidates;
+        }
+
+        void load(Sudoku src) {
+            sudoku.copyFrom(src);
+            pickCell();
+        }
+
+        void pickCell() {
+            emptyCellIndex = sudoku.pickEmptyCellFromMask(mask);
+            candidates = (emptyCellIndex == -1) ? 0 : sudoku.candidates[emptyCellIndex];
+        }
+
+        PuzzleSearchNode next() {
+            // No further branches to try (sudoku is probably invalid or solved).
+            if (!maybeHasNext()) return null;
+
+            // Recycle a node if there are any.
+            PuzzleSearchNode nextNode = new PuzzleSearchNode(this);
+            // nextNode.sudoku.copyFrom(sudoku);
+
+            // Pick a random candidate and set it in the next node.
+            // If the choice renders the puzzle invalid, pick a new candidate.
+            // If all choices are invalid, return null (no next).
+            int[] candidateDigits = CANDIDATES[candidates];
+            int randomCandidateDigit = candidateDigits[ThreadLocalRandom.current().nextInt(candidateDigits.length)];
+            nextNode.sudoku.setDigit(emptyCellIndex, randomCandidateDigit);
+            candidates &= ~(ENCODER[randomCandidateDigit]);
+
+            if (nextNode.sudoku.isValid) {
+                for (int ni : CELL_NEIGHBORS[emptyCellIndex]) {
+                    nextNode.sudoku.reduceCandidates(ni);
+                }
+            }
+
+            if (nextNode.sudoku.isValid) {
+                nextNode.pickCell();
+                return nextNode;
+            } else {
+                return next();
+            }
+
+            // Alternate logic -- not yet tested
+            // do {
+            //     int[] candidateDigits = CANDIDATES[candidates];
+            //     int randomCandidateDigit = candidateDigits[ThreadLocalRandom.current().nextInt(candidateDigits.length)];
+            //     nextNode.sudoku.setDigit(emptyCellIndex, randomCandidateDigit);
+            //     candidates &= ~(ENCODER[randomCandidateDigit]);
+            // } while (!nextNode.sudoku.isValid && candidates > 0);
+            // if (!nextNode.sudoku.isValid || candidates == 0) return null;
+
+            // for (int ni : CELL_NEIGHBORS[emptyCellIndex]) {
+            //     nextNode.sudoku.constrainCell(ni);
+            // }
+            // if (!nextNode.sudoku.isValid) return null;
+            // nextNode.pickCell();
+
+            // return nextNode;
+        }
+
+        List<PuzzleSearchNode> nexts() {
+            // No further branches to try (sudoku is probably invalid or solved).
+            if (!maybeHasNext()) return null;
+
+            ArrayList<PuzzleSearchNode> nextNodes = new ArrayList<>();
+
+            Sudoku s = new Sudoku();
+            for (int d : CANDIDATES[candidates]) {
+                s.copyFrom(this.sudoku);
+                s.setDigit(emptyCellIndex, d);
+
+                if (s.isValid) {
+                    for (int ni : CELL_NEIGHBORS[emptyCellIndex]) {
+                        s.reduceCandidates(ni);
+                    }
+                }
+
+                if (s.isValid) {
+                    nextNodes.add(new PuzzleSearchNode(s, mask));
+                }
+            }
+
+            candidates = 0;
+            return nextNodes;
+        }
+
+        boolean maybeHasNext() {
+            return (candidates > 0 && sudoku.isValid);
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                "(%d: %s)",
+                emptyCellIndex,
+                CANDIDATES_STRS[candidates]
+            );
+        }
+    }
+
+    /**
+     * Searches for puzzles with the given mask. When a valid sudoku is found,
+     * invokes the given callback function. The callback function should return
+     * true to continue searching, false otherwise.
+     * @param mask SudokuMask that indicates the cells to use in the puzzle.
+     * @param puzzleCallback Function that is called with each valid puzzle found.
+     */
+    public static void searchForPuzzles(SudokuMask mask, Function<Sudoku,Boolean>puzzleCallback) {
+        Sudoku p = new Sudoku();
+
+        int[] areaBitCounts = mask.areaBitCounts();
+        // System.out.println(Arrays.toString(areaBitCounts));
+        int maxIndex = 0;
+        for (int i = 1; i < areaBitCounts.length; i++) {
+            if (areaBitCounts[i] > areaBitCounts[maxIndex]) {
+                maxIndex = i;
+            }
+        }
+        // System.out.printf("maxIndex: %d\n", maxIndex);
+
+        int[] areaIndices;
+        if (maxIndex < 9) { // max bits are in a row
+            areaIndices = ROW_INDICES[maxIndex];
+        } else if(maxIndex < 18) { // max bits are in a col
+            areaIndices = COL_INDICES[maxIndex - 9];
+        } else { // max bits are in a region
+            areaIndices = REGION_INDICES[maxIndex - 18];
+        }
+        int digit = 1;
+        for (int i = 0; i < DIGITS; i++) {
+            int ci = areaIndices[i];
+            if (mask.testBit(ci)) {
+                p.setDigit(ci, digit++);
+                for (int ni : CELL_NEIGHBORS[ci]) {
+                    // p.reduceCell(ni);
+                    // p.candidates[ni] &= ~p.cellConstraints(ni);
+                    p.reduceCandidates(ni);
+                }
+            }
+        }
+
+        // System.out.println(p.toMedString());
+        String[] flags = new String[]{"  ","⭐️","🧩"};
+
+        Stack<PuzzleSearchNode> stack = new Stack<>();
+        stack.push(new PuzzleSearchNode(p, mask));
+
+        long iterations = 0L;
+        while (!stack.isEmpty()) {
+            if ((iterations % 1_000L) == 0L) {
+                String[] stackStr = new String[stack.size()];
+                for (int i = 0; i < stack.size(); i++) {
+                    stackStr[i] = stack.get(i).toString();
+                }
+                System.out.printf(
+                    "\n%s %d iters; stack: {%s}\n",
+                    LocalDateTime.now().toString(),
+                    iterations,
+                    String.join(" ", stackStr)
+                );
+            }
+            iterations++;
+
+            PuzzleSearchNode top = stack.peek();
+            p = top.sudoku;
+            // System.out.printf("[%d]\n%s\n", p.numClues(), p.toMedString());
+            // System.out.printf("[%d] %s\n", p.numClues(), p.toString());
+            if (p.numClues() == mask.bitCount()) {
+                int flag = p.solutionsFlag();
+                // System.out.printf("%s   %s\n", flags[flag], p.toString());
+                if (flag == 1) {
+                    System.out.println();
+                    if (!puzzleCallback.apply(new Sudoku(p))) break;
+                } else {
+                    System.out.print('#');
+                }
+                // iterations++;
+                stack.pop();
+            } else {
+                System.out.print('.');
+                PuzzleSearchNode next = top.next();
+                if (next == null) {
+                    stack.pop();
+                } else {
+                    stack.push(next);
+                }
+            }
+        }
+    }
+
 
     /** Sudoku board array.*/
     int[] digits;
