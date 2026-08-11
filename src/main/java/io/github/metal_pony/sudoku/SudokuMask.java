@@ -414,12 +414,8 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
 
     @Override
     public int hashCode() {
-        long key = bits[0];
-        key = (key ^ (key >>> 32)) * 0x111111111111111L;
-        key = (key ^ (key >>> 32)) * 0x111111111111111L;
-        key = (key ^ (key >>> 32));
-        long key1 = bits[1] * 0x111111111111111L;
-        return ((int)key) ^ ((int)key1);
+        long h = Long.hashCode(bits[0]) ^ Long.hashCode(bits[1]);
+        return (int)(h ^ (h >>> 32));
     }
 
     @Override
