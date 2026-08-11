@@ -151,7 +151,30 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
         this.bitsSet = other.bitsSet;
     }
 
-    // Sets mask data by parsing the character array.
+    /**
+     * Creates a new SudokuMask with the bits derived from the given byte array.
+     * @param bitCombo Byte array to mirror bits from.
+     */
+    public SudokuMask(byte[] bitCombo) {
+        this();
+        setFromCombo(bitCombo);
+    }
+
+    /**
+     * Maps the bits in the given byte array to this mask.
+     * @param bitCombo Byte array to map data from.
+     */
+    public void setFromCombo(byte[] bitCombo) {
+        for (int bit = 0; bit < SPACES; bit++) {
+            if ((bitCombo[bit / 8] & (1 << (bit % 8))) > 0) {
+                bitsSet++;
+                int bsi = (bit > 16) ? 0 : 1;
+                int bi = (80 - bit) % 64;
+                bits[bsi] |= (1L<<bi);
+            }
+        }
+    }
+
     /**
      * Maps the characters in the given array to this mask.
      * Nonzero digit characters will be mapped to set bits; all other characters
@@ -170,6 +193,23 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
     }
 
     /**
+     * Builds and returns a byte array representation of this mask.
+     * @return Byte array representing the mask.
+     */
+    public byte[] toByteArray() {
+        byte[] result = new byte[11];
+
+        for (int bit = 0; bit < SPACES; bit++) {
+            if (testBit(bit)) {
+                result[bit / 8] |= (byte)(1 << (bit % 8));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Gets the number of bits set in the mask.
      * @return The number of bits set.
      */
     public int bitCount() {
