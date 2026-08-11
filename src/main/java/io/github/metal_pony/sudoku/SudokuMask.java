@@ -536,4 +536,57 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
 
         if (bitCount % 2 == 1) bits[0] |= (1L << 40);
     }
+
+    /**
+     * Builds and returns a multiline string represeting this mask.
+     * @return Multiline string of the mask.
+     */
+    public String toMedString() {
+        StringBuilder strb = new StringBuilder();
+        String lineSep = System.lineSeparator();
+        for (int i = 0; i < SPACES; i++) {
+            strb.append(testBit(i) ? '#' : '.');
+
+            // Print pipe between region columns
+            if ((((i+1)%3) == 0) && (((i+1)%9) != 0)) {
+                strb.append(" | ");
+            } else {
+                strb.append(' ');
+            }
+
+            if (((i+1)%9) == 0) {
+                strb.append(lineSep);
+                if (i < 80) {
+                    // Border between region rows
+                    if (((((i+1)/9)%3) == 0) && (((i/9)%8) != 0)) {
+                        strb.append("------+-------+------");
+                        strb.append(lineSep);
+                    }
+                }
+            }
+        }
+
+        return strb.toString();
+    }
+
+    /**
+     * Counts and returns the number of cells in each area (row, column, region).
+     * <ul>
+     * <li><code>result[0-8]</code> correspond to the sudoku board's rows</li>
+     * <li><code>result[9-17]</code> for the column counts</li>
+     * <li><code>result[18-26]</code> for the region counts</li>
+     * </ul>
+     * @return Array containing cell counts for each area.
+     */
+    public int[] areaBitCounts() {
+        int[] counts = new int[9 * 3];
+        for (int ci = 0; ci < 81; ci++) {
+            if (testBit(ci)) {
+                counts[Sudoku.cellRow(ci)]++;
+                counts[9 + Sudoku.cellCol(ci)]++;
+                counts[18 + Sudoku.cellRegion(ci)]++;
+            }
+        }
+        return counts;
+    }
 }
