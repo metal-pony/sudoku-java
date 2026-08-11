@@ -2298,6 +2298,40 @@ public class Sudoku {
     }
 
     /**
+     * Finds and returns the index of an empty cell within a given cell mask,
+     * or -1 if no empty cells exist.
+     * Prioritizes empty cells with the fewest number of candidates. If multiple cells
+     * have the fewest number of candidates, chooses one of them at random.
+     * @param mask SudokuMask providing the cells available to be picked,
+     * as indicated by the bits set.
+     * @return Index of an empty cell, or -1 if no empty cells exist.
+     */
+    public int pickEmptyCellFromMask(SudokuMask mask) {
+        if (numEmptyCells == 0) return -1;
+
+        int min = DIGITS + 1;
+        // TODO Compare performance when using int[81] instead of ArrayList
+        List<Integer> _minimums = new ArrayList<>();
+        for (int ci = 0; ci < 81; ci++) {
+            if (mask.testBit(ci) && digits[ci] == 0) {
+                int numCandidates = BIT_COUNT_MAP[candidates[ci]];
+                if (numCandidates < min) {
+                    min = numCandidates;
+                    _minimums.clear();
+                    _minimums.add(ci);
+                } else if (numCandidates == min) {
+                    _minimums.add(ci);
+                }
+            }
+        }
+
+        return ((!_minimums.isEmpty()) ?
+            -1 :
+            ArraysUtil.chooseRandom(_minimums)
+        );
+    }
+
+    /**
      * Builds a string 81 character length representation of this sudoku.
      * Empty cells will be indicated by a dot (<code>.</code>).
      */
