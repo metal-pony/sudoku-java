@@ -14,6 +14,16 @@ import java.util.function.Function;
 
 import static io.github.metal_pony.sudoku.Constants.*;
 
+/**
+ * Data structure associated with a given sudoku solution.
+ * Maintains a collection of unavoidable sets of the solution, the 'Items',
+ * as SudokuMasks.
+ * Provides methods to filter through the items, check if a mask satisfies
+ * all sieve items, and search for / seed more items.
+ *
+ * The Sieve can be used to aid puzzle searching by providing a fail-fast
+ * check against a given puzzle mask.
+ */
 public class SudokuSieve {
     private static class ItemGroup {
         final int order;
@@ -59,6 +69,7 @@ public class SudokuSieve {
     }
 
     /**
+     * Gets the number of items in this Sieve.
      * @return Number of items in the sieve.
      */
     public int size() {
@@ -66,6 +77,7 @@ public class SudokuSieve {
     }
 
     /**
+     * Gets whether this Sieve contains no items.
      * @return Whether the sieve contains no items.
      */
     public boolean isEmpty() {
@@ -73,33 +85,44 @@ public class SudokuSieve {
     }
 
     /**
-     * @return A Sudoku instance copy of the grid associated with this sieve.
+     * Gets the solution associated with this Sieve.
+     * @return A new Sudoku instance containing the solution.
      */
     public Sudoku config() {
         return new Sudoku(_config);
     }
 
     /**
-     * @return A new List containing copies of this sieve's items.
+     * Creates and returns a new Set populated with this Sieve's items.
+     * @return A new Set containing copies of this sieve's items.
      */
     public Set<SudokuMask> items() {
         return items(new HashSet<>(size));
     }
 
     /**
-     * Populates a List with copies of this sieve's items.
-     * @param list A List to copy items into.
-     * @return The given list, for convenience.
+     * Populates a Set with copies of this sieve's items.
+     * This method is synchronized by the instance lock shared
+     * among all other mutating methods.
+     * @param set A Set to copy items into.
+     * @return The given set, for convenience.
      */
-    public synchronized Set<SudokuMask> items(Set<SudokuMask> list) {
+    public synchronized Set<SudokuMask> items(Set<SudokuMask> set) {
         for (ItemGroup group : _itemGroupsByBitCount) {
             for (SudokuMask item : group.items) {
-                list.add(new SudokuMask(item));
+                set.add(new SudokuMask(item));
             }
         }
-        return list;
+        return set;
     }
 
+    /**
+     * Populates a list with copies of this sieve's items.
+     * This method is synchronized by the instance lock shared
+     * among all other mutating methods.
+     * @param list A List to copy items into.
+     * @return The given set, for convenience.
+     */
     public synchronized List<SudokuMask> items(List<SudokuMask> list) {
         for (ItemGroup group : _itemGroupsByBitCount) {
             for (SudokuMask item : group.items) {
@@ -111,6 +134,10 @@ public class SudokuSieve {
 
     /**
      * Maps sudoku cell indices to the number of times the cell appears among sieve items.
+     * This method is synchronized by the instance lock shared
+     * among all other mutating methods.
+     * @return A new array containing the number of times each cell is included
+     * among sieve items.
      */
     public synchronized int[] reductionMatrix() {
         return reductionMatrix(new int[SPACES]);
@@ -118,6 +145,10 @@ public class SudokuSieve {
 
     /**
      * Maps sudoku cell indices to the number of times the cell appears among sieve items.
+     * This method is synchronized by the instance lock shared
+     * among all other mutating methods.
+     * @param arr Array container to copy into; must be length 81.
+     * @return The given array, for convenience.
      */
     public synchronized int[] reductionMatrix(int[] arr) {
         if (arr.length != reductionMatrix.length) {
@@ -128,23 +159,30 @@ public class SudokuSieve {
     }
 
     /**
+     * Gets the first item in the sieve. Items are organized primarily by
+     * their number of bits set, ascending, so the first items should have
+     * the least number of bits set.
      * @return The first item in the sieve; null if the sieve is empty.
      */
     public synchronized SudokuMask first() {
         for (ItemGroup group : _itemGroupsByBitCount) {
             if (group.items.size() > 0) {
-                return group.items.first();
+                return new SudokuMask(group.items.first());
             }
         }
-
         return null;
     }
 
+    /**
+     * Finds the first sieve item that is not satisfied by the given mask.
+     * @param mask SudokuMask to compare against the sieve items.
+     * @return First Sieve item that contains no overlapping bits with mask.
+     */
     public synchronized SudokuMask firstNotOverlapping(SudokuMask mask) {
         for (ItemGroup group : _itemGroupsByBitCount) {
             for (SudokuMask item : group.items) {
                 if (!mask.intersects(item)) {
-                    return item;
+                    return new SudokuMask(item);
                 }
             }
         }
@@ -171,37 +209,59 @@ public class SudokuSieve {
 
     /**
      * Retrieves the group associated with the given bitCount.
+     * @param bitCount Number of bits set in masks associated with the ItemGroup.
+     * @return ItemGroup associated with the bitCount.
      */
     ItemGroup groupForBitCount(int bitCount) {
         return _itemGroupsByBitCount.get(bitCount);
     }
 
     /**
-     * Gets a list of items associated with the given number of clues.
-     * @param numClues
+     * Gets a list of items associated with the given bitCount.
+     * @param bitCount Number of bits set in masks associated with the Sieve items.
      * @return A new List containing copies of the sieve items associated with the number of clues.
      * @throws IllegalArgumentException If numClues is out of range.
      */
-    public List<SudokuMask> getItemByNumClues(int numClues) {
-        if (numClues < 0 || numClues > SPACES) {
+    public List<SudokuMask> getItemByNumClues(int bitCount) {
+        if (bitCount < 0 || bitCount > SPACES) {
             throw new IllegalArgumentException("Invalid number of clues");
         }
         List<SudokuMask> results = new ArrayList<>();
         synchronized (this) {
-            for (SudokuMask item : groupForBitCount(numClues).items) {
+            for (SudokuMask item : groupForBitCount(bitCount).items) {
                 results.add(new SudokuMask(item));
             }
         }
         return results;
     }
 
+    /**
+     * Seeds this Sieve using the given collection of SudokuMasks.
+     * Each mask will be applied to the Sieve's solution, creating a puzzle.
+     * Each puzzle will then be solved, and unique solutions collected.
+     * Solutions different from this Sieve's will be used to derive new Items.
+     * @param masks Collection of SudokuMask that will serve as filters applied
+     * to the solution.
+     */
     public void seed(Collection<SudokuMask> masks) {
         masks.forEach(mask -> addFromFilter(mask));
     }
 
+    /**
+     * Generates a List of SudokuMask. Each mask is a puzzle filter for a combination
+     * of sudoku board areas (rows, columns, or regions). Level determines how
+     * many areas are used to build the filter masks. For example, when
+     * <code>level = 2</code>, the generated List will contain all combinations
+     * of 2 rows, combos of 2 columns, and combos of 2 regions.
+     *
+     * Note: This does not mix area types together within the same masks.
+     *
+     * @param level (Bounds: [1, 8]) Number of areas in each generated mask.
+     * @return List of SudokuMask.
+     */
     // TODO These can be precompiled on class load
     public List<SudokuMask> areaCombos(int level) {
-        if (level < 2 || level > 4) throw new IllegalArgumentException("Invalid level");
+        if (level < 1 || level > DIGITS - 1) throw new IllegalArgumentException("Invalid level");
 
         List<SudokuMask> combos = new ArrayList<>();
         for (int combo : DIGIT_COMBOS_MAP[level]) {
@@ -229,8 +289,16 @@ public class SudokuSieve {
         return combos;
     }
 
+    /**
+     * Generates a List of SudokuMask. Each mask is a filter for the Solution to remove
+     * a combination of digits. Level determines how many digits are remove for each mask.
+     * For example, when <code>level = 2</code>, the generated List will contain a mask
+     * for filtering out each pair of digits.
+     * @param level (Bounds: [1, 8]) Number of digits in each generated mask.
+     * @return List of SudokuMask.
+     */
     public List<SudokuMask> digitCombos(int level) {
-        if (level < 2 || level > 4) throw new IllegalArgumentException("Invalid level");
+        if (level < 1 || level > DIGITS - 1) throw new IllegalArgumentException("Invalid level");
 
         List<SudokuMask> combos = new ArrayList<>();
         int[] board = _config.toArray();
@@ -249,6 +317,11 @@ public class SudokuSieve {
         return combos;
     }
 
+    /**
+     * Generates both digit and area filter masks associated with the given level.
+     * @param level (Bounds: [1, 8]) Number of digits in each generated mask.
+     * @return A new List containing all the generated area and digit masks.
+     */
     public List<SudokuMask> fullPrintCombos(int level) {
         List<SudokuMask> combos = new ArrayList<>();
         combos.addAll(digitCombos(level));
@@ -256,6 +329,15 @@ public class SudokuSieve {
         return combos;
     }
 
+    /**
+     * Seeds this Sieve using the given collection of SudokuMasks.
+     * Each mask will be applied to the Sieve's solution, creating a puzzle.
+     * Each puzzle will then be solved, and unique solutions collected.
+     * Solutions different from this Sieve's will be used to derive new Items.
+     * @param masks Collection of SudokuMask that will serve as filters applied
+     * to the solution.
+     * @param numThreads Number of threads to split the work.
+     */
     public void seedThreaded(Collection<SudokuMask> masks, int numThreads) {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(
             numThreads, numThreads,
@@ -275,12 +357,26 @@ public class SudokuSieve {
         }
     }
 
+    /**
+     * Seeds this Sieve using the given collection of SudokuMasks.
+     * Each mask will be applied to the Sieve's solution, creating a puzzle.
+     * Each puzzle will then be solved, and unique solutions collected.
+     * Solutions different from this Sieve's will be used to derive new Items.
+     *
+     * Note: Uses the maximum number of threads.
+     *
+     * @param masks Collection of SudokuMask that will serve as filters applied
+     * to the solution.
+     */
     public void seedThreaded(Collection<SudokuMask> masks) {
         seedThreaded(masks, Runtime.getRuntime().availableProcessors());
     }
 
     /**
      * Checks whether the given SudokuMask is an unavoidable set.
+     * Masks are Unavoidable Sets when the puzzle they create is (1) not reducible
+     * by any Sudoku technique, and (2) each empty cell has at least 2 candidates
+     * that when used, make the puzzle a valid sudoku.
      * @param mask Mask representing an unavoidable set.
      * @return True if the mask is an unavoidable set; otherwise false.
      */
@@ -297,7 +393,7 @@ public class SudokuSieve {
     /**
      * Checks whether the given SudokuMask is derivative of an existing unavoidable set
      * already in this sieve.
-     * @param mask
+     * @param mask Mask to check.
      * @return True if the mask is covered by an unavoidable set mask in this sieve; otherwise false.
      * Empty masks (0 bitCount are always TRUE).
      */
@@ -379,11 +475,16 @@ public class SudokuSieve {
     /**
      * Filters the sieve's grid with the given mask, and for each solution,
      * adds the diff as an item if it validates as an unavoidable set.
+     *
+     * Note: The bits set in the given mask indicate which cells will be removed.
+     *
      * @param mask Used to filter the sudoku grid associated with this sieve.
+     * @return Number of Items added to this Sieve.
      */
     public int addFromFilter(SudokuMask mask) {
         AtomicInteger numAdded = new AtomicInteger();
-        _config.filter(mask.flip()).searchForSolutions(solution -> {
+        SudokuMask _mask = new SudokuMask(mask);
+        _config.filter(_mask.flip()).searchForSolutions(solution -> {
             SudokuMask diff = _config.diffMask(solution);
             if (
                 diff.bitCount() > 0 &&
@@ -398,6 +499,12 @@ public class SudokuSieve {
         return numAdded.get();
     }
 
+    /**
+     * Filters the sieve's grid with the given mask, and for each solution,
+     * adds the diff as an item if it validates as an unavoidable set.
+     * @param mask Used to filter the sudoku grid associated with this sieve.
+     * @return Number of Items added to this Sieve.
+     */
     public int addFromPuzzleMask(SudokuMask mask) {
         AtomicInteger numAdded = new AtomicInteger();
         _config.filter(mask).searchForSolutions(solution -> {
@@ -432,7 +539,7 @@ public class SudokuSieve {
     /**
      * Removes and returns all items that include the given cell index.
      * Items removed are automatically deducted from the reduction matrix.
-     * @param cellIndex
+     * @param cellIndex Cell index.
      * @return A list containing all items that were removed.
      */
     public synchronized List<SudokuMask> removeOverlapping(int cellIndex) {
@@ -442,7 +549,7 @@ public class SudokuSieve {
     /**
      * Removes and returns all items that include the given cell index.
      * Items removed are automatically deducted from the reduction matrix.
-     * @param cellIndex
+     * @param cellIndex Cell index.
      * @param removedList A list to add the removed items to.
      * @return The given list for convenience.
      */
@@ -452,6 +559,13 @@ public class SudokuSieve {
         return removeOverlapping(mask, removedList);
     }
 
+    /**
+     * Removes and returns all items that contain overlapping bits with the given mask.
+     * Items removed are automatically deducted from the reduction matrix.
+     * @param mask SudokuMask compared against Items.
+     * @param removedList A list to add the removed items to.
+     * @return The given list for convenience.
+     */
     public synchronized List<SudokuMask> removeOverlapping(SudokuMask mask, List<SudokuMask> removedList) {
         for (ItemGroup group : _itemGroupsByBitCount) {
             group.items.removeIf((i) -> {
@@ -470,7 +584,7 @@ public class SudokuSieve {
 
     /**
      * Checks whether the given mask intersects with all sieve items.
-     * @param puzzleMask
+     * @param puzzleMask SudokuMask to check against the Items.
      * @return True if the mask contains at least one bit intersecting with each sieve item.
      */
     public synchronized boolean doesMaskSatisfy(SudokuMask puzzleMask) {
@@ -504,6 +618,13 @@ public class SudokuSieve {
         return strb.toString();
     }
 
+    /**
+     * Creates a hash string of this Sieve, based on the combined bitCounts of
+     * its Items.
+     * @param isLvl2 Whether the sieve is seeded to level 2. This omits Items
+     * with odd bitCounts from the hash, as a Sieve at level 2 shouldn't contain them.
+     * @return Generated string hash.
+     */
     public String hash(boolean isLvl2) {
         StringBuilder strb = new StringBuilder();
         strb.append(size());

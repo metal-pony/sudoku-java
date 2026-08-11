@@ -8,6 +8,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * Additional array and list utilities.
  */
 public class ArraysUtil {
+    private ArraysUtil() {}
+
     /**
      * Returns a copy of the given array.
      * @param source Array to copy.
@@ -208,6 +210,7 @@ public class ArraysUtil {
 
     /**
      * Returns a random element from the list.
+     * @param <T> List element type.
      * @param list List to choose an element from.
      * @return Random element chosen from list.
      */
@@ -217,6 +220,7 @@ public class ArraysUtil {
 
     /**
      * Chooses a specified number of random elements from the given list.
+     * @param <T> List element type.
      * @param list List to choose from.
      * @param amount Number of items to choose.
      * @return A new list containing the chosen items.
@@ -281,6 +285,7 @@ public class ArraysUtil {
 
     /**
      * Shuffles the given list in-place.
+     * @param <T> List element type.
      * @param list Array to shuffle.
      * @return The given list for convenience.
      */
@@ -294,6 +299,7 @@ public class ArraysUtil {
 
     /**
      * Swaps two elements in the given array, by index.
+     * @param <T> Array element type.
      * @param arr Array to swap in.
      * @param a Index of first element.
      * @param b Index of the second element.
@@ -366,6 +372,7 @@ public class ArraysUtil {
 
     /**
      * Swaps two elements in the given list, by index.
+     * @param <T> List element type.
      * @param list List to swap in.
      * @param a Index of first element.
      * @param b Index of the second element.
@@ -466,6 +473,7 @@ public class ArraysUtil {
 
     /**
      * Reverses the contents of the given list.
+     * @param <T> List element type.
      * @param list List to reverse.
      * @return The given list for convenience.
      */

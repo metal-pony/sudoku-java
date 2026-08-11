@@ -19,7 +19,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import static io.github.metal_pony.sudoku.Constants.*;
 import io.github.metal_pony.sudoku.util.Counting;
 
+/**
+ * [EXPERIMENTAL] Contains some utilities leftover from removing the CLI driver code.
+ * None of this should be consumed as part of the sudoku library.
+ * This will be removed.
+ */
 public class Main {
+  private Main() {}
+
   static final int MAX_THREADS = Runtime.getRuntime().availableProcessors();
   static final String RESOURCES_DIR = "resources";
 
@@ -166,6 +173,7 @@ public class Main {
   }
 
   private static void wip_1() {
+    final int threads = 8;
     final int clues = 27; //args.cluesOrDefault(24);
     // if (clues < MIN_CLUES || clues > SPACES) {
     //   throw new IllegalArgumentException("clues out of range");
@@ -200,7 +208,7 @@ public class Main {
     Sudoku.searchForPuzzlesAsync(paliMask, (puzzle) -> {
       System.out.printf("[%d] %s\n", count.incrementAndGet(), puzzle.toString());
       return true;
-    });
+    }, threads);
     long endTime = System.currentTimeMillis();
     System.out.printf(
       "Found %d puzzles of palindrome(clues = %d, r = %d). (%d ms)\n",
@@ -215,12 +223,21 @@ public class Main {
     // });
   }
 
-  private static List<String> sudokuLines(List<Sudoku> sudokus, int numPerLine, String delim) {
+  /**
+   * Takes a list of Sudokus, converts them to MedString representation,
+   * and organizes them into a grid with `numPerLine` sudokus per row.
+   * A delimiter is used to separate the sudokus.
+   *
+   * @param sudokus List of Sudoku sudokus to format.
+   * @param numPerLine Maximum number of sudokus per output line.
+   * @param delim Delimiter between sudokus.
+   * @return List of formatted lines of sudokus.
+   */
+  public static List<String> sudokuLines(List<Sudoku> sudokus, int numPerLine, String delim) {
     final int len = sudokus.size();
     List<String> lines = new ArrayList<>();
     if (len == 0) return lines;
 
-    // with toMedString, 11
     final int linesPerSudoku = sudokus.get(0).toMedString().split("\n").length;
 
     String[][] sudokuStrs = new String[numPerLine][];
@@ -242,10 +259,8 @@ public class Main {
           sudokuLines[j] = sudokuStrs[j][line];
         }
 
-        // System.out.println(String.join(delim, sudokuLines).trim());
         lines.add(String.join(delim, sudokuLines).trim());
       }
-      // System.out.println("\n");
       lines.add("");
     }
     return lines;

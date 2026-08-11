@@ -14,6 +14,10 @@ import java.util.Stack;
 import static io.github.metal_pony.sudoku.Constants.*;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 
+/**
+ * Used to perform a hitting-set puzzle search given a solution and
+ * a pre-generated sieve.
+ */
 public class SieveSearcher {
   class Choice {
     int[] indices;
@@ -131,10 +135,20 @@ public class SieveSearcher {
 
   int maxClues;
 
+  /**
+   * Creates a new SieveSearcher for the given SudokuSieve.
+   * @param sieve SudokuSieve used to initialize the searcher.
+   */
   public SieveSearcher(SudokuSieve sieve) {
     this(sieve, null);
   }
 
+  /**
+   * Creates a new SieveSearcher for the given SudokuSieve.
+   * Also takes a baseMask which serves as a starting point for the search.
+   * @param sieve SudokuSieve used to initialize the searcher.
+   * @param baseMask SudokuMask used as the search starting point.
+   */
   public SieveSearcher(SudokuSieve sieve, SudokuMask baseMask) {
     this.grid = sieve.config();
     this.origSieveItems = new ArrayList<>(sieve.size());
@@ -183,6 +197,11 @@ public class SieveSearcher {
   // [ 9]: 1450
   // [10]: 72
 
+  /**
+   * [EXPERIMENTAL] Performs a sieve search with the maximum number of clues specified for
+   * the puzzle results.
+   * @param max Maximum number of clues a resulting puzzle may have.
+   */
   public void search(int max) {
     this.maxClues = max;
     long sieveSize = sieve.size();
@@ -329,6 +348,10 @@ public class SieveSearcher {
     }
   }
 
+  /**
+   * [EXPERIMENTAL] Performs a search for all masks, with up to maxBits, that satisfy the sieve.
+   * @param maxBits Maximum number of bits a resulting mask may have.
+   */
   public void searchAllSatifyingMasks(int maxBits) {
     this.maxClues = maxBits;
     long sieveSize = sieve.size();
@@ -429,6 +452,14 @@ public class SieveSearcher {
     }
   }
 
+  /**
+   * [EXPERIMENTAL] Performs a search for puzzles with a minimum amount of clues.
+   * Each time the search finds a puzzle with a smaller number of clues, the search
+   * narrows down to only puzzles with that number of clues or fewer.
+   *
+   * The search is still in development. It should work correctly, but take a very long
+   * time to complete (WEEK+). There are still optimizations to make.
+   */
   public void minsearch() {
     this.maxClues = SPACES;
     long sieveSize = sieve.size();
@@ -639,9 +670,6 @@ public class SieveSearcher {
     }
     return results;
   }
-
-
-
 
   void searchDown(Set<SudokuMask> resultSet, Set<SudokuMask> searchDownSeen) {
     for (int i = 0; i < 81; i++) {

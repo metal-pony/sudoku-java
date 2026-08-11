@@ -4,6 +4,8 @@ package io.github.metal_pony.sudoku.util;
  * Additional String utilities.
  */
 public class StringsUtil {
+    private StringsUtil() {}
+
     /**
      * Prepends the given string with the fillChar to meet a length requirement.
      * @param str String to prepend.

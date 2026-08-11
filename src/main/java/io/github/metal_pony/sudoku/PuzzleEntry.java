@@ -20,106 +20,119 @@ import java.util.stream.Stream;
 
 import com.google.gson.Gson;
 
+/**
+ * A PuzzleEntry contains a Sudoku puzzle and can generate
+ * an associated SolutionRecord if one does not already exist.
+ * PuzzleEntry can also load data from sudoku17 resource files
+ * to provide all 17-clue sudoku puzzles.
+ */
 public class PuzzleEntry {
+    /** Name of the resources directory on the classpath.*/
     static final String RESOURCES_DIR = "resources";
+    /** Name of the JSON resource containing 17-clue puzzle records.*/
     static final String PUZZLES_17_JSON_RESOURCE = "17-puzzle-records.json";
+    /** Name of the text file resource containing 17-clue puzzles.*/
     static final String PUZZLES_17_RESOURCE = "sudoku-17.txt";
 
+    /**
+     * Gets the 17-clue puzzle file content as a stream.
+     */
     static InputStream puzzles17Stream() {
         String rscName = String.format("/%s/%s", RESOURCES_DIR, PUZZLES_17_RESOURCE);
         return PuzzleEntry.class.getResourceAsStream(rscName);
     }
 
-    String puzzle;
-    Sudoku _puzzle;
-    String solution;
-    Sudoku _solution;
+    Sudoku sudoku;
+    SolutionRecord solution;
 
-    String dc2, dc3, dc4;
-    String ac2, ac3, ac4;
-    String fp2, fp3, fp4;
-
-    public PuzzleEntry(String puzzle) {
-        this.puzzle = puzzle;
+    /**
+     * Creates a new PuzzleEntry with the given puzzle.
+     * @param puzzleStr Sudoku puzzle string.
+     */
+    public PuzzleEntry(String puzzleStr) {
+        this.sudoku = new Sudoku(puzzleStr);
+        this.solution = null;
     }
 
-    public PuzzleEntry(
-        String puzzle,
-        String solution,
-        String dc2, String dc3, String dc4,
-        String ac2, String ac3, String ac4,
-        String fp2, String fp3, String fp4
-    ) {
-        this.puzzle = puzzle;
-        this.solution = solution;
-        this.dc2 = dc2;
-        this.dc3 = dc3;
-        this.dc4 = dc4;
-        this.ac2 = ac2;
-        this.ac3 = ac3;
-        this.ac4 = ac4;
-        this.fp2 = fp2;
-        this.fp3 = fp3;
-        this.fp4 = fp4;
-    }
-
-    public String puzzleStr() { return puzzle; }
+    /**
+     * Gets a copy of the puzzle.
+     * @return Sudoku puzzle.
+     */
     public Sudoku puzzle() {
-        return (_puzzle == null) ? (_puzzle = new Sudoku(puzzle)) : _puzzle;
+        return new Sudoku(sudoku);
     }
 
-    public String solutionStr() {
-        if (solution == null || solution.isBlank()) {
-            _solution = puzzle().solution();
-            solution = _solution.toString();
+    /**
+     * Gets the SolutionRecord associated with this puzzle.
+     * If it doesn't exist, the puzzle solution will be generated
+     * and a record will be created.
+     * @return SolutionRecord for this puzzle.
+     * @throws RuntimeException if this puzzle does not have a single solution.
+     */
+    public SolutionRecord solution() {
+        if (solution == null) {
+            int flag = puzzle().solutionsFlag();
+            if (flag == 1) {
+                Sudoku s = puzzle().solution();
+                solution = new SolutionRecord(s.toString());
+            } else {
+                throw new RuntimeException("PuzzleEntry does not have single solution.");
+            }
         }
         return solution;
     }
 
-    public Sudoku solution() {
-        if (solution == null || solution.isBlank()) {
-            _solution = puzzle().solution();
-            solution = _solution.toString();
-        } else if (_solution == null) {
-            _solution = puzzle().solution();
-        }
-        return _solution;
+    @Override
+    public String toString() {
+        return this.sudoku.toString();
     }
-
-    public void clear() {
-        solution = null;
-        dc2 = null; dc3 = null; dc4 = null;
-        ac2 = null; ac3 = null; ac4 = null;
-        fp2 = null; fp3 = null; fp4 = null;
-    }
-
-    public String dc2() { return (dc2 == null) ? (dc2 = solution().dc2()) : dc2; }
-    public String dc3() { return (dc3 == null) ? (dc3 = solution().dc3()) : dc3; }
-    public String dc4() { return (dc4 == null) ? (dc4 = solution().dc4()) : dc4; }
-    public String fp2() { return (fp2 == null) ? (fp2 = solution().fp2()) : fp2; }
-    public String fp3() { return (fp3 == null) ? (fp3 = solution().fp3()) : fp3; }
-    public String fp4() { return (fp4 == null) ? (fp4 = solution().fp4()) : fp4; }
 
     private static final String JSON_FORMAT = """
     {
       "puzzle":   "%s",
       "solution": "%s",
-      "fp2":      "%s",
-      "fp3":      "%s"
+      "dc2":      "%s",
+      "dc3":      "%s"
     }""";
-    @Override
-    public String toString() {
-        return String.format(JSON_FORMAT, puzzleStr(), solutionStr(), fp2(), fp3());
+    /**
+     * Gets a JSON string representation for this record.
+     * The result will contain this puzzle string, solution string,
+     * dc2 and dc3 fingerprints.
+     * @return JSON string representation.
+     */
+    public String toJson() {
+        // Ensure SolutionRecord exists
+        solution();
+        return String.format(
+            JSON_FORMAT,
+            toString(),
+            solution.toString(),
+            solution.dc2(),
+            solution.dc3()
+        );
     }
 
-    private static final String CSV_FORMAT = "%s,%s,%s,%s";
+    private static final String CSV_FORMAT = "%s,%s,%s";
+    /**
+     * Gets a csv string representation for this record.
+     * The result will contain this puzzle string, solution string,
+     * and the dc2 fingerprint.
+     * @return CSV string representation.
+     */
     public String toCsv() {
-        return String.format(CSV_FORMAT, puzzleStr(), solutionStr(), fp2(), fp3());
+        // Ensure SolutionRecord exists
+        solution();
+        return String.format(
+            CSV_FORMAT,
+            toString(),
+            solution.toString(),
+            solution.dc2()
+        );
     }
 
     /**
      * Reads Puzzle entries from the given inputstream.
-     * @param inStream
+     * @param inStream InputStream to read from. Should contain JSON entries.
      * @return Array of PuzzleEntries read from the stream.
      */
     public static PuzzleEntry[] readFromJsonInStream(InputStream inStream) {
@@ -146,6 +159,10 @@ public class PuzzleEntry {
         );
     }
 
+    /**
+     * Reads all 17-clue sudoku puzzles from the resource file.
+     * @return List of all 17-clue sudoku puzzles.
+     */
     public static List<PuzzleEntry> allSudoku17() {
         List<PuzzleEntry> entries = new ArrayList<>();
 
@@ -167,6 +184,10 @@ public class PuzzleEntry {
         return entries;
     }
 
+    /**
+     * Reads all 17-clue sudoku puzzles from the resource file.
+     * @return Stream of all 17-clue sudoku puzzles.
+     */
     public static Stream<PuzzleEntry> allSudoku17AsStream() {
         Scanner scanner = new Scanner(
             PuzzleEntry.class.getResourceAsStream(String.format(
@@ -196,6 +217,13 @@ public class PuzzleEntry {
         });
     }
 
+    /**
+     * Transforms the sudoku17 puzzles from resources into a CSV file.
+     * This can be processed using multiple threads. The order of the
+     * lines from the puzzle file will be preserved in the output.
+     * @param outFilePath Name of the file to generate.
+     * @param numThreads Number of threads to use.
+     */
     public static void buildCSV(String outFilePath, int numThreads) {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(
             numThreads, numThreads,
@@ -233,6 +261,8 @@ public class PuzzleEntry {
             }
         } catch (FileNotFoundException | InterruptedException | ExecutionException e) {
             e.printStackTrace();
+        } finally {
+            pool.close();
         }
     }
 }

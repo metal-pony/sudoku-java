@@ -2,12 +2,22 @@ package io.github.metal_pony.sudoku;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 
+/**
+ * Houses a precompiled list of sudoku puzzles.
+ * Used primarily for testing.
+ * This may be removed at some point.
+ */
 public class GeneratedPuzzles {
+  private GeneratedPuzzles() {}
 
+  /**
+   * Utility that transforms a list of sudoku strings into Sudoku instances.
+   * @param strs Sudoku strings.
+   * @return List of Sudoku instances.
+   */
   public static List<Sudoku> convertStringsToBoards(String[] strs) {
     ArrayList<Sudoku> boards = new ArrayList<>();
     for (String s : strs) {
@@ -17,17 +27,10 @@ public class GeneratedPuzzles {
   }
 
   /**
-   * Gets a new puzzle and its solution.
-   *
-   * @return Array where first element is the puzzle and second the solution.
+   * Gets a list of random sudoku puzzle strings.
+   * @param amount Number of puzzle strings to get.
+   * @return A new List containing puzzle strings.
    */
-  public static String[] getRandomPuzzleAndSolution() {
-    ThreadLocalRandom rand = ThreadLocalRandom.current();
-    int index = rand.nextInt(PUZZLES_24_1000.length);
-
-    return new String[] { PUZZLES_24_1000[index], SOLUTIONS[index] };
-  }
-
   public static List<String> getRandomPuzzles(int amount) {
     List<String> list = new ArrayList<>(1000);
     for (String pStr : PUZZLES_24_1000) {
@@ -37,10 +40,9 @@ public class GeneratedPuzzles {
     return list.subList(0, amount);
   }
 
-  public static final String[] SOLUTIONS = new String[] {
-
-  };
-
+  /**
+   * An array of 1000 sudoku puzzle strings.
+   */
   public static final String[] PUZZLES_24_1000 = new String[] {
     ".5....92..2.1.4.7..4.3....156.........8..72....4.9........46.....7.8.36....5.....",
     "...6....9.9..18.451.5.........95......28....46...2....8....3......1893..2.....1..",
@@ -1043,5 +1045,4 @@ public class GeneratedPuzzles {
     ".9....617....8....1.....9...279.1..8.1...8...4....6...7......6...463.7........5.9",
     "......4...6.....939..82.7....59....4......1.7..1..5..819.7...2....28....3....1..."
   };
-
 }
