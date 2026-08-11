@@ -101,6 +101,7 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
         return mask;
     }
 
+    static final long BITS_1_MASK = 0x01FFFFL;
 
     // I apologize to myself for future me's confusion.
     //
@@ -209,14 +210,21 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
      * @return This SudokuMask for convenience.
      */
     public SudokuMask add(SudokuMask other) {
-        for (int b = 0; b < N; b++) {
-            if (other.testBit(b) && !testBit(b)) {
-                bitsSet++;
-                int bsi = (b > 16) ? 0 : 1;
-                int bi = (80 - b) % 64;
-                bits[bsi] |= (1L<<bi);
-            }
-        }
+        bits[0] |= other.bits[0];
+        bits[1] |= other.bits[1] & BITS_1_MASK;
+        bitsSet = Long.bitCount(bits[0]) + Long.bitCount(bits[1]);
+        return this;
+    }
+
+    /**
+     * Any bits set in the given mask will be unset in this one.
+     * @param other The other mask to combine into this one.
+     * @return This SudokuMask for convenience.
+     */
+    public SudokuMask subtract(SudokuMask other) {
+        bits[0] &= ~other.bits[0];
+        bits[1] &= ~other.bits[1] & BITS_1_MASK;
+        bitsSet = Long.bitCount(bits[0]) + Long.bitCount(bits[1]);
         return this;
     }
 
