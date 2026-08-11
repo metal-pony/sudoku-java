@@ -2311,6 +2311,36 @@ public class Sudoku {
     }
 
     /**
+     * [EXPERIMENTAL] Builds a string representation of this sudoku.
+     * The representation preserves cell candidate values.
+     * Cell digit values are written as digits.
+     * Cells with no candidates, or ALL candidates, are written as '.'.
+     * Cells with one candidate are translated to an uppercase letter.
+     * Remaining cells with more than one candidate are translated to
+     * two characters of base-26 using the lowercase alphabet.
+     * @return String representation of this sudoku.
+     */
+    public String toLongString() {
+        StringBuilder strb = new StringBuilder();
+        for (int ci = 0; ci < SPACES; ci++) {
+            if (digits[ci] > 0) strb.append(digits[ci]);
+            else {
+                int c = candidates[ci];
+                int d = DECODER[c];
+                if (c == 0 || c == ALL) strb.append('.');
+                else if (d > 0) strb.append((char)('A' + (d - 1)));
+                else {
+                    int sym1 = c / 26;
+                    int sym2 = c % 26;
+                    strb.append((char)('a' + (sym1 - 1)));
+                    strb.append((char)('a' + (sym2 - 1)));
+                }
+            }
+        }
+        return strb.toString();
+    }
+
+    /**
      * Builds a multiline string representation of this sudoku,
      * including spacing and region borders.
      * @return Multiline string representation of the board.
