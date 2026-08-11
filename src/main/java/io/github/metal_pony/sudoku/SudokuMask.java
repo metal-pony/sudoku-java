@@ -1,6 +1,8 @@
 package io.github.metal_pony.sudoku;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static io.github.metal_pony.sudoku.Constants.*;
@@ -478,6 +480,63 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
     @Override
     public int compare(SudokuMask o1, SudokuMask o2) {
         return o1.compareTo(o2);
+    }
+
+    private static List<SudokuMask> primeSieve = new ArrayList<>(){{
+        SudokuMask[] rowMasks = new SudokuMask[DIGITS];
+        SudokuMask[] colMasks = new SudokuMask[DIGITS];
+
+        for (int i = 0; i < DIGITS; i++) {
+            rowMasks[i] = new SudokuMask();
+            colMasks[i] = new SudokuMask();
+        }
+
+        for (int ci = 0; ci < SPACES; ci++) {
+            rowMasks[Sudoku.cellRow(ci)].setBit(ci);
+            colMasks[Sudoku.cellCol(ci)].setBit(ci);
+        }
+
+        for (int k = 0; k < 3; k++) {
+            add(new SudokuMask(rowMasks[3*k]).add(rowMasks[3*k + 1]));
+            add(new SudokuMask(rowMasks[3*k]).add(rowMasks[3*k + 2]));
+            add(new SudokuMask(rowMasks[3*k + 1]).add(rowMasks[3*k + 2]));
+
+            add(new SudokuMask(colMasks[3*k]).add(colMasks[3*k + 1]));
+            add(new SudokuMask(colMasks[3*k]).add(colMasks[3*k + 2]));
+            add(new SudokuMask(colMasks[3*k + 1]).add(colMasks[3*k + 2]));
+        }
+    }};
+
+    /**
+     * Checks whether the given mask has at least one bit overlapping
+     * with each mask in the prime sieve.
+     * @param mask Mask to check.
+     * @return True if the mask satisfies the prime sieve; otherwise false.
+     */
+    public static boolean satisfiesPrimeSieve(SudokuMask mask) {
+        for (SudokuMask item : primeSieve) {
+            if (!item.intersects(mask)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether the given mask has at least one bit overlapping
+     * with each mask in the prime sieve. If a sieve mask is not satisfied,
+     * returns the index of that mask. If all are satisfied, returns -1.
+     * @param mask Mask to check.
+     * @return -1 if the prime sieve is satisfied; otherwise the index
+     * of the non-overlapping item.
+     */
+    public static int satisfiesPrimeSieveInt(SudokuMask mask) {
+		for (int i = 0; i < primeSieve.size(); i++) {
+			if (!primeSieve.get(i).intersects(mask)) {
+				return i;
+			}
+		}
+        return -1;
     }
 
     /**
