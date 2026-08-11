@@ -127,6 +127,19 @@ public class Counting {
 		return resultSet;
 	}
 
+	private static final int NCK_CACHE_MAX_N = 100;
+	private static final List<List<BigInteger>> nckCache = Collections.synchronizedList(new ArrayList<>());
+	static {
+		for (int n = 0; n <= NCK_CACHE_MAX_N; n++) {
+			List<BigInteger> nList = Collections.synchronizedList(new ArrayList<>(n + 1));
+			for (int k = 0; k <= n; k++) { nList.add(null); }
+			nList.set(0, BigInteger.ONE);
+			nList.set(n, BigInteger.ONE);
+			nckCache.add(nList);
+		}
+		nckCache.get(0).add(BigInteger.ONE);
+	}
+
 	/**
 	 * Computes n choose k.
 	 * @param n Total number of bits in the combination; number of items to choose from.
@@ -137,9 +150,14 @@ public class Counting {
 		if (n < 0 || k < 0 || n < k) {
 			throw new IllegalArgumentException("n and k must both be >= 0 and n must be >= k.");
 		}
+		if (k == 0 || n == k) return BigInteger.ONE;
 
-		if (k == 0 || n == k) {
-			return BigInteger.ONE;
+		if (n < nckCache.size()) {
+			List<BigInteger> nCache = nckCache.get(n);
+			if (nCache.get(k) == null) {
+				nCache.set(k, factorial(n).divide(factorial(k)).divide(factorial(n - k)));
+			}
+			return nCache.get(k);
 		}
 
 		return factorial(n).divide(factorial(k)).divide(factorial(n - k));
