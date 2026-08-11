@@ -25,6 +25,22 @@ import static io.github.metal_pony.sudoku.Constants.*;
  * check against a given puzzle mask.
  */
 public class SudokuSieve {
+    /**
+     * Determines if the given mask `m` has at least one overlapping bit set with each
+     * of the elements in the given items collection.
+     * @param items SudokuMasks to check the mask against.
+     * @param m SudokuMask to check satisfies the given items.
+     * @return True if `m` has bit(s) overlapping with each item.
+     */
+    public static boolean maskSatisfiesSieve(Collection<SudokuMask> items, SudokuMask m) {
+        for (SudokuMask i : items) {
+            if (!i.intersects(m)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static class ItemGroup {
         final int order;
         final TreeSet<SudokuMask> items;
