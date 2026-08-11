@@ -3,6 +3,7 @@ package io.github.metal_pony.sudoku.util;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -20,7 +21,9 @@ public class Counting {
 	private Counting() {}
 
 	// Cache of factorials
-	private static List<BigInteger> factMap = new ArrayList<>(Arrays.asList(BigInteger.ONE));
+	private static final List<BigInteger> factMap = Collections.synchronizedList(
+		new ArrayList<>(Arrays.asList(BigInteger.ONE))
+	);
 
 	/**
 	 * Computes the factorial of the given number.
@@ -30,13 +33,8 @@ public class Counting {
 	 * @return <code>n!</code> as a BigInteger.
 	 */
 	public static BigInteger factorial(int n) {
-		if (n < 0) {
-			throw new IllegalArgumentException("n must be nonnegative");
-		}
-
-		if (n < factMap.size()) {
-			return factMap.get(n);
-		}
+		if (n < 0) throw new IllegalArgumentException("n must be nonnegative");
+		if (n < factMap.size()) return factMap.get(n);
 
 		int i = factMap.size() - 1;
 		BigInteger result = factMap.get(i);
