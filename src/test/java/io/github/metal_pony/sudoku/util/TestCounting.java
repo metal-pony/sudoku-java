@@ -32,6 +32,18 @@ public class TestCounting {
             assertEquals(new BigInteger(nFact), Counting.factorial(n));
         }
 
+        @Test
+        void testFact_whenNisNegative_throws() {
+            int[] invalidNs = new int[]{ -1, -2, -3, -10, -100, -1000 };
+            for (int n : invalidNs) {
+                assertThrows(IllegalArgumentException.class, () -> {
+                    Counting.factorial(n);
+                });
+            }
+        }
+
+
+
         // Arbitrary visual tests
         // @Test
         void adhoc() {
@@ -123,6 +135,56 @@ public class TestCounting {
         }
 
         @Test
+        void bitComboLong() {
+            // Test expected bitcombo results:  expectedCombos[n][k][r] = expected int
+            long[][][] expectedCombos = new long[][][] {
+                new long[0][0],
+                new long[][] {
+                    new long[] { 0 },
+                    new long[] { 1 },
+                },
+                new long[][] {
+                    new long[] { 0 },
+                    new long[] { 0b10, 0b01 },
+                    new long[] { 0b11 },
+                },
+                new long[][] {
+                    new long[] { 0 },
+                    new long[] { 0b100, 0b010, 0b001 },
+                    new long[] { 0b110, 0b101, 0b011 },
+                    new long[] { 0b111 },
+                },
+                new long[][] {
+                    new long[] { 0 },
+                    new long[] { 0b1000, 0b0100, 0b0010, 0b0001 },
+                    new long[] { 0b1100, 0b1010, 0b1001, 0b0110, 0b0101, 0b0011 },
+                    new long[] { 0b1110, 0b1101, 0b1011, 0b0111 },
+                    new long[] { 0b1111 },
+                },
+                new long[][] {
+                    new long[] { 0 },
+                    new long[] { 0b10000, 0b01000, 0b00100, 0b00010, 0b00001 },
+                    new long[] { 0b11000, 0b10100, 0b10010, 0b10001, 0b01100, 0b01010, 0b01001, 0b00110, 0b00101, 0b00011 },
+                    new long[] { 0b11100, 0b11010, 0b11001, 0b10110, 0b10101, 0b10011, 0b01110, 0b01101, 0b01011, 0b00111 },
+                    new long[] { 0b11110, 0b11101, 0b11011, 0b10111, 0b01111 },
+                    new long[] { 0b11111 },
+                },
+            };
+
+            for (int n = 0; n < expectedCombos.length; n++) {
+                for (int k = 0; k < expectedCombos[n].length; k++) {
+                    for (int r = 0; r < expectedCombos[n][k].length; r++) {
+                        assertEquals(
+                            expectedCombos[n][k][r],
+                            Counting.bitComboLong(n, k, r),
+                            String.format("error bitComboLong(n = %d, k = %d, r = %d)", n, k, r)
+                        );
+                    }
+                }
+            }
+        }
+
+        @Test
         @DisplayName("bitCombo throws with bad (negative) input")
         void bitCombo_withBadInput_throws() {
             BigInteger NEG_ONE = BigInteger.ZERO.subtract(BigInteger.ONE);
@@ -134,20 +196,13 @@ public class TestCounting {
         }
 
         @Test
-        @DisplayName("nChooseK throws with bad (negative) input")
-        void nChooseK_withBadInput_throws() {
-            assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(-1, 0));
-            assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(-10, 0));
-            assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(0, -1));
-            assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(0, -10));
-            assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(-10, -10));
-        }
-
-        @Test
-        @DisplayName("nChooseK returns 0 whenever k is 0")
-        void nChooseK_whenKIsZero_returnsOne() {
-            for (int n = 0; n < 100; n++) {
-                assertEquals(BigInteger.ONE, Counting.nChooseK(n, 0));
+        @DisplayName("nChooseK throws with negative input")
+        void nChooseK_whenEitherInputIsNegative_throws() {
+            int[] negatives = new int[]{ -1, -2, -3, -10, -100, -1000, Integer.MIN_VALUE };
+            for (int neg : negatives) {
+                assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(neg, 0));
+                assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(neg, neg));
+                assertThrows(IllegalArgumentException.class, () -> Counting.nChooseK(1, neg));
             }
         }
 
