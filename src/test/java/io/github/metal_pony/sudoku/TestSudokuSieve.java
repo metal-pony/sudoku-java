@@ -16,6 +16,8 @@ import org.junit.jupiter.params.provider.CsvFileSource;
 
 import com.google.gson.Gson;
 
+import static io.github.metal_pony.sudoku.Constants.*;
+
 public class TestSudokuSieve {
     private final String configFixtureStr = "218574639573896124469123578721459386354681792986237415147962853695318247832745961";
     private Sudoku configFixture;
@@ -223,8 +225,8 @@ public class TestSudokuSieve {
     }
 
     private void populateSieveForAllDigitCombos(int level) {
-        for (int r = Sudoku.DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
-            SudokuMask pMask = configFixture.maskForDigits(Sudoku.DIGIT_COMBOS_MAP[level][r]);
+        for (int r = DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
+            SudokuMask pMask = configFixture.maskForDigits(DIGIT_COMBOS_MAP[level][r]);
             sieve.addFromFilter(pMask);
         }
     }
