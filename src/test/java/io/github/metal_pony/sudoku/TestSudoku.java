@@ -35,6 +35,16 @@ public class TestSudoku {
 
     @Nested
     class Static {
+        @Test
+        void test_generateConfig() {
+            Sudoku config = Sudoku.generateConfig();
+            assertEquals(config.numEmptyCells, 0);
+            assertTrue(config.isValid());
+            assertTrue(config.isSolved());
+            assertEquals(config.solutionsFlag(), 1);
+        }
+
+
         void isRowFull() {}
         void cisClFull() {}
         void isRegionFull() {}
@@ -535,7 +545,8 @@ public class TestSudoku {
         // }
     }
 
-    @Test
+    // Test disabled while json file is rebuilt
+    // @Test
     void puzzleByteBreakdownAndRehydration() {
         PuzzleEntry[] sudoku17 = PuzzleEntry.all17();
         int i = 0;
@@ -564,7 +575,7 @@ public class TestSudoku {
                 // boolean matches = expectedPrint.equals(actualFp);
                 // System.out.printf("CHECKING %s(): %s ", name, actualFp);
                 // System.out.println(matches ? "✅" : "❌ " + expectedPrint);
-                assertEquals(actualFp, expectedPrint);
+                assertEquals(expectedPrint, actualFp);
             } catch (
                 IllegalAccessException |
                 IllegalArgumentException |

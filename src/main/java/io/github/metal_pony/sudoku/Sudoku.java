@@ -2552,7 +2552,7 @@ public class Sudoku {
             }
         }
 
-        return ((!_minimums.isEmpty()) ?
+        return (_minimums.isEmpty() ?
             -1 :
             ArraysUtil.chooseRandom(_minimums)
         );
@@ -2586,7 +2586,7 @@ public class Sudoku {
             }
         }
 
-        return ((!_minimums.isEmpty()) ?
+        return (_minimums.isEmpty() ?
             -1 :
             ArraysUtil.chooseRandom(_minimums)
         );
