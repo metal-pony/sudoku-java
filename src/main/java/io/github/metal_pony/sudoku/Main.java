@@ -205,10 +205,11 @@ public class Main {
     System.out.println("Searching for valid puzzles...");
     long startTime = System.currentTimeMillis();
     AtomicLong count = new AtomicLong();
-    Sudoku.searchForPuzzlesAsync(paliMask, (puzzle) -> {
+    // Sudoku.searchForPuzzlesAsync(paliMask, (puzzle) -> {
+    Sudoku.searchForPuzzles(paliMask, (puzzle) -> {
       System.out.printf("[%d] %s\n", count.incrementAndGet(), puzzle.toString());
       return true;
-    }, threads);
+    });
     long endTime = System.currentTimeMillis();
     System.out.printf(
       "Found %d puzzles of palindrome(clues = %d, r = %d). (%d ms)\n",
