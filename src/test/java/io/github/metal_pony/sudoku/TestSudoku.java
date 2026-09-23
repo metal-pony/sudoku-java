@@ -18,6 +18,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.github.metal_pony.sudoku.Constants.*;
+import io.github.metal_pony.sudoku.Sudoku.SolutionIterator;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
 
@@ -33,6 +35,16 @@ public class TestSudoku {
 
     @Nested
     class Static {
+        @Test
+        void test_generateConfig() {
+            Sudoku config = Sudoku.generateConfig();
+            assertEquals(config.numEmptyCells, 0);
+            assertTrue(config.isValid());
+            assertTrue(config.isSolved());
+            assertEquals(config.solutionsFlag(), 1);
+        }
+
+
         void isRowFull() {}
         void cisClFull() {}
         void isRegionFull() {}
@@ -50,28 +62,28 @@ public class TestSudoku {
         @Test
         void rotate90() {
             // When arr is null, throws NullPointerException
-            assertThrows(nullErr, () -> { Sudoku.rotate90(null, 1); });
+            assertThrows(nullErr, () -> { ArraysUtil.rotate90(null, 1); });
 
             // When arr is empty, does nothing
             int[] arr = new int[0];
-            int[] actual = Sudoku.rotate90(arr, 0);
+            int[] actual = ArraysUtil.rotate90(arr, 0);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, actual));
 
             // When arr is not square, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.rotate90(new int[2], 1); });
-            assertThrows(argErr, () -> { Sudoku.rotate90(new int[3], 1); });
-            assertThrows(argErr, () -> { Sudoku.rotate90(new int[5], 2); });
-            assertThrows(argErr, () -> { Sudoku.rotate90(new int[99], 9); });
+            assertThrows(argErr, () -> { ArraysUtil.rotate90(new int[2], 1); });
+            assertThrows(argErr, () -> { ArraysUtil.rotate90(new int[3], 1); });
+            assertThrows(argErr, () -> { ArraysUtil.rotate90(new int[5], 2); });
+            assertThrows(argErr, () -> { ArraysUtil.rotate90(new int[99], 9); });
 
             // Otherwise, rotates array as expected
             arr = new int[]{1, 2, 3, 4};
-            actual = Sudoku.rotate90(arr, 2);
+            actual = ArraysUtil.rotate90(arr, 2);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{3, 1, 4, 2}));
 
             arr = new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
-            actual = Sudoku.rotate90(arr, 3);
+            actual = ArraysUtil.rotate90(arr, 3);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{7, 4, 1, 8, 5, 2, 9, 6, 3}));
         }
@@ -79,22 +91,22 @@ public class TestSudoku {
         @Test
         void reflectOverHorizontal() {
             // When arr is null, throws NullPointerException
-            assertThrows(nullErr, () -> { Sudoku.reflectOverHorizontal(null, 0); });
+            assertThrows(nullErr, () -> { ArraysUtil.reflectOverHorizontal(null, 0); });
 
             // When rows is 0 or negative, throw IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverHorizontal(new int[1], 0); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverHorizontal(new int[1], -1); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverHorizontal(new int[1], 0); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverHorizontal(new int[1], -1); });
 
             // When arr is not divisible by rows, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverHorizontal(new int[3], 2); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverHorizontal(new int[4], 3); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverHorizontal(new int[9], 4); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverHorizontal(new int[99], 10); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverHorizontal(new int[3], 2); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverHorizontal(new int[4], 3); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverHorizontal(new int[9], 4); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverHorizontal(new int[99], 10); });
 
 
             // When rows < 2, does nothing
             int[] arr = new int[]{1,2,3,4,5};
-            int[] actual = Sudoku.reflectOverHorizontal(arr, 1);
+            int[] actual = ArraysUtil.reflectOverHorizontal(arr, 1);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(new int[]{1,2,3,4,5}, actual));
 
@@ -103,7 +115,7 @@ public class TestSudoku {
                 1, 2,
                 3, 4
             };
-            actual = Sudoku.reflectOverHorizontal(arr, 2);
+            actual = ArraysUtil.reflectOverHorizontal(arr, 2);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 3, 4,
@@ -117,7 +129,7 @@ public class TestSudoku {
                 7, 8,
                 9, 10
             };
-            actual = Sudoku.reflectOverHorizontal(arr, 5);
+            actual = ArraysUtil.reflectOverHorizontal(arr, 5);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 9, 10,
@@ -131,21 +143,21 @@ public class TestSudoku {
         @Test
         void reflectOverVertical() {
             // When arr is null, throws NullPointerException
-            assertThrows(nullErr, () -> { Sudoku.reflectOverVertical(null, 0); });
+            assertThrows(nullErr, () -> { ArraysUtil.reflectOverVertical(null, 0); });
 
             // When rows is 0, throw IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverVertical(new int[1], 0); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverVertical(new int[1], -1); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverVertical(new int[1], 0); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverVertical(new int[1], -1); });
 
             // When arr is not divisible by rows, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverVertical(new int[3], 2); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverVertical(new int[4], 3); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverVertical(new int[9], 4); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverVertical(new int[99], 10); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverVertical(new int[3], 2); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverVertical(new int[4], 3); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverVertical(new int[9], 4); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverVertical(new int[99], 10); });
 
             // When cols (arr.length / rows) < 2, does nothing
             int[] arr = new int[]{1,2,3,4,5};
-            int[] actual = Sudoku.reflectOverVertical(arr, 5);
+            int[] actual = ArraysUtil.reflectOverVertical(arr, 5);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(new int[]{1,2,3,4,5}, actual));
 
@@ -154,7 +166,7 @@ public class TestSudoku {
                 1, 2,
                 3, 4
             };
-            actual = Sudoku.reflectOverVertical(arr, 2);
+            actual = ArraysUtil.reflectOverVertical(arr, 2);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 2, 1,
@@ -168,7 +180,7 @@ public class TestSudoku {
                 7, 8,
                 9, 10
             };
-            actual = Sudoku.reflectOverVertical(arr, 5);
+            actual = ArraysUtil.reflectOverVertical(arr, 5);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 2, 1,
@@ -182,24 +194,24 @@ public class TestSudoku {
         @Test
         void reflectOverDiagonal() {
             // When arr is null, throws NullPointerException
-            assertThrows(nullErr, () -> { Sudoku.reflectOverDiagonal(null, 1); });
+            assertThrows(nullErr, () -> { ArraysUtil.reflectOverDiagonal(null, 1); });
 
             // When arr is empty, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[1], 0); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[1], -1); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[1], 0); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[1], -1); });
 
             // When arr is not square, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[2], 1); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[3], 2); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[5], 2); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[99], 10); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[2], 1); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[3], 2); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[5], 2); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[99], 10); });
 
             // Otherwise, rotates array as expected
             int[] arr = new int[]{
                 1, 2,
                 3, 4
             };
-            int[] actual = Sudoku.reflectOverDiagonal(arr, 2);
+            int[] actual = ArraysUtil.reflectOverDiagonal(arr, 2);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 4, 2,
@@ -212,7 +224,7 @@ public class TestSudoku {
                 9, 10, 11, 12,
                 13, 14, 15, 16
             };
-            actual = Sudoku.reflectOverDiagonal(arr, 4);
+            actual = ArraysUtil.reflectOverDiagonal(arr, 4);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 16, 12,  8,  4,
@@ -225,24 +237,24 @@ public class TestSudoku {
         @Test
         void reflectOverAntiDiagonal() {
             // When arr is null, throws NullPointerException
-            assertThrows(nullErr, () -> { Sudoku.reflectOverAntiDiagonal(null, 1); });
+            assertThrows(nullErr, () -> { ArraysUtil.reflectOverAntiDiagonal(null, 1); });
 
             // When arr is empty, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[1], 0); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverDiagonal(new int[1], -1); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[1], 0); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverDiagonal(new int[1], -1); });
 
             // When arr is not square, throws IllegalArgumentException
-            assertThrows(argErr, () -> { Sudoku.reflectOverAntiDiagonal(new int[2], 2); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverAntiDiagonal(new int[3], 3); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverAntiDiagonal(new int[5], 5); });
-            assertThrows(argErr, () -> { Sudoku.reflectOverAntiDiagonal(new int[99], 99); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverAntiDiagonal(new int[2], 2); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverAntiDiagonal(new int[3], 3); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverAntiDiagonal(new int[5], 5); });
+            assertThrows(argErr, () -> { ArraysUtil.reflectOverAntiDiagonal(new int[99], 99); });
 
             // Otherwise, rotates array as expected
             int[] arr = new int[]{
                 1, 2,
                 3, 4
             };
-            int[] actual = Sudoku.reflectOverAntiDiagonal(arr, 2);
+            int[] actual = ArraysUtil.reflectOverAntiDiagonal(arr, 2);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 1, 3,
@@ -255,7 +267,7 @@ public class TestSudoku {
                 9, 10, 11, 12,
                 13, 14, 15, 16
             };
-            actual = Sudoku.reflectOverAntiDiagonal(arr, 4);
+            actual = ArraysUtil.reflectOverAntiDiagonal(arr, 4);
             assertTrue(arr == actual);
             assertTrue(Arrays.equals(arr, new int[]{
                 1,  5,  9, 13,
@@ -518,7 +530,7 @@ public class TestSudoku {
             assertTrue(p.isValid());
             assertFalse(p.isSolved());
             assertEquals(24, p.numClues());
-            assertEquals(Sudoku.SPACES - 24, p.numEmptyCells());
+            assertEquals(SPACES - 24, p.numEmptyCells());
             assertFalse(p.isFull());
             assertFalse(p.isEmpty());
         }
@@ -526,14 +538,15 @@ public class TestSudoku {
         // for (String pStr : ) {
             assertTrue(configFixture.isValid());
             assertTrue(configFixture.isSolved());
-            assertEquals(Sudoku.SPACES, configFixture.numClues());
+            assertEquals(SPACES, configFixture.numClues());
             assertEquals(0, configFixture.numEmptyCells());
             assertTrue(configFixture.isFull());
             assertFalse(configFixture.isEmpty());
         // }
     }
 
-    @Test
+    // Test disabled while json file is rebuilt
+    // @Test
     void puzzleByteBreakdownAndRehydration() {
         PuzzleEntry[] sudoku17 = PuzzleEntry.all17();
         int i = 0;
@@ -562,7 +575,7 @@ public class TestSudoku {
                 // boolean matches = expectedPrint.equals(actualFp);
                 // System.out.printf("CHECKING %s(): %s ", name, actualFp);
                 // System.out.println(matches ? "✅" : "❌ " + expectedPrint);
-                assertEquals(actualFp, expectedPrint);
+                assertEquals(expectedPrint, actualFp);
             } catch (
                 IllegalAccessException |
                 IllegalArgumentException |
@@ -803,13 +816,15 @@ public class TestSudoku {
             Set<String> solutionSet = new HashSet<>();
             int countSolutions = 0;
             long timeStart = System.currentTimeMillis();
-            for (Sudoku solution : p.solutions()) {
+            SolutionIterator iter = p.solutions();
+            for (Sudoku solution : iter) {
                 countSolutions++;
                 solutionSet.add(solution.toString());
             }
             long timeEnd = System.currentTimeMillis();
             assertEquals(0, solutionSet.size());
             assertEquals(0, countSolutions);
+            assertEquals(0, iter.getSolutionCount());
             assertTrue(
                 (timeEnd - timeStart) < 1000L,
                 String.format("Expected no solutions to be found within 1s. Took %dms", (timeEnd - timeStart))
@@ -848,13 +863,16 @@ public class TestSudoku {
         int countSolutions = 0;
         Sudoku puzzle = new Sudoku("...8.1..........435............7.8........1...2..3....6......75..34........2..6..");
         String knownSolution = "237841569186795243594326718315674892469582137728139456642918375853467921971253684";
-        for (Sudoku solution : puzzle.solutions()) {
+        SolutionIterator iter = puzzle.solutions();
+        for (Sudoku solution : iter) {
             countSolutions++;
             solutionSet.add(solution.toString());
             assertEquals(knownSolution, solution.toString());
         }
         assertEquals(1, solutionSet.size());
         assertEquals(1, countSolutions);
+        assertEquals(1, iter.getSolutionCount());
+        assertFalse(iter.hasNext());
     }
 
     @Test
@@ -865,12 +883,15 @@ public class TestSudoku {
             Sudoku puzzle = new Sudoku(puzzleStr);
             int countSolutions = 0;
             solutionSet.clear();
-            for (Sudoku solution : puzzle.solutions()) {
+            SolutionIterator iter = puzzle.solutions();
+            for (Sudoku solution : iter) {
                 countSolutions++;
                 solutionSet.add(solution.toString());
             }
             assertEquals(1, solutionSet.size());
             assertEquals(1, countSolutions);
+            assertEquals(1, iter.getSolutionCount());
+            assertFalse(iter.hasNext());
         }
     }
 
@@ -883,12 +904,14 @@ public class TestSudoku {
             solutionSet.clear();
             int expectedNumSolutions = entry.getValue();
             Sudoku p = new Sudoku(entry.getKey());
-            for (Sudoku solution : p.solutions()) {
+            SolutionIterator iter = p.solutions();
+            for (Sudoku solution : iter) {
                 countSolutions++;
                 solutionSet.add(solution.toString());
             }
             assertEquals(expectedNumSolutions, solutionSet.size());
             assertEquals(expectedNumSolutions, countSolutions);
+            assertEquals(expectedNumSolutions, iter.getSolutionCount());
         }
     }
 
@@ -1292,8 +1315,8 @@ public class TestSudoku {
     }
 
     private void populateSieveForAllDigitCombos(int level) {
-        for (int r = Sudoku.DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
-            SudokuMask pMask = configFixture.maskForDigits(Sudoku.DIGIT_COMBOS_MAP[level][r]);
+        for (int r = DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
+            SudokuMask pMask = configFixture.maskForDigits(DIGIT_COMBOS_MAP[level][r]);
             configFixtureSieve.addFromFilter(pMask);
         }
     }

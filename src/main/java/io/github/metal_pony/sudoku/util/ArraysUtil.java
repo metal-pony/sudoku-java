@@ -4,79 +4,129 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Helpers for arrays. */
+/**
+ * Additional array and list utilities.
+ */
 public class ArraysUtil {
-    /** Returns a copy of the given array. */
+    private ArraysUtil() {}
+
+    /**
+     * Returns a copy of the given array.
+     * @param source Array to copy.
+     * @return A copy of the array.
+     */
     public static int[] copy(int[] source) {
         int[] arr = new int[source.length];
         System.arraycopy(source, 0, arr, 0, source.length);
         return arr;
     }
 
-    /** Returns a copy of the given array. */
+    /**
+     * Returns a copy of the given array.
+     * @param source Array to copy.
+     * @return A copy of the array.
+     */
     public static long[] copy(long[] source) {
         long[] arr = new long[source.length];
         System.arraycopy(source, 0, arr, 0, source.length);
         return arr;
     }
 
-    /** Returns a copy of the given array. */
+    /**
+     * Returns a copy of the given array.
+     * @param source Array to copy.
+     * @return A copy of the array.
+     */
     public static float[] copy(float[] source) {
         float[] arr = new float[source.length];
         System.arraycopy(source, 0, arr, 0, source.length);
         return arr;
     }
 
-    /** Returns a copy of the given array. */
+    /**
+     * Returns a copy of the given array.
+     * @param source Array to copy.
+     * @return A copy of the array.
+     */
     public static double[] copy(double[] source) {
         double[] arr = new double[source.length];
         System.arraycopy(source, 0, arr, 0, source.length);
         return arr;
     }
 
-    /** Returns a copy of the given array. */
+    /**
+     * Returns a copy of the given array.
+     * @param source Array to copy.
+     * @return A copy of the array.
+     */
     public static boolean[] copy(boolean[] source) {
         boolean[] arr = new boolean[source.length];
         System.arraycopy(source, 0, arr, 0, source.length);
         return arr;
     }
 
-    /** Creates a new array with sequential elements from 0 to n exclusive. */
+    /**
+     * Creates a new array with sequential elements from 0 to n, exclusive.
+     * @param n Number of elements to create.
+     * @return New array containing elements from 0 to n.
+     */
     public static int[] range(int n) {
         int[] arr = new int[n];
 		for (int i = 0; i < n; i++) arr[i] = i;
 		return arr;
     }
 
-    /** Creates a new array with sequential elements from 0 to n exclusive. */
+    /**
+     * Creates a new array with sequential elements from 0 to n, exclusive.
+     * @param n Number of elements to create.
+     * @return New array containing elements from 0 to n.
+     */
     public static long[] rangeLong(int n) {
         long[] arr = new long[n];
 		for (int i = 0; i < n; i++) arr[i] = i;
 		return arr;
     }
 
-    /** Creates a new array with sequential elements from 0 to n exclusive. */
+    /**
+     * Creates a new array with sequential elements from 0 to n, exclusive.
+     * @param n Number of elements to create.
+     * @return New array containing elements from 0 to n.
+     */
     public static float[] rangeFloat(int n) {
         float[] arr = new float[n];
 		for (int i = 0; i < n; i++) arr[i] = i;
 		return arr;
     }
 
-    /** Creates a new array with sequential elements from 0 to n exclusive. */
+    /**
+     * Creates a new array with sequential elements from 0 to n, exclusive.
+     * @param n Number of elements to create.
+     * @return New array containing elements from 0 to n.
+     */
     public static double[] rangeDouble(int n) {
         double[] arr = new double[n];
 		for (int i = 0; i < n; i++) arr[i] = i;
 		return arr;
     }
 
-    /** Creates a new array with sequential elements from 0 to n exclusive. */
+    /**
+     * Creates a new array with sequential elements from 0 to n, exclusive.
+     * @param n Number of elements to create.
+     * @return New array containing elements from 0 to n.
+     */
     public static List<Integer> rangeList(int n) {
         List<Integer> list = new ArrayList<>(n);
 		for (int i = 0; i < n; i++) list.add(i);
 		return list;
     }
 
-    /** Fills the array with random numbers between origin and bound (exclusive). */
+    /**
+     * Fills the array with random numbers between origin and bound (exclusive).
+     * @param arr Array to be filled.
+     * @param origin Lower bound for generated array values.
+     * @param bound Upper bound (exclusive) for generated array values.
+     * @return The given array, for convenience.
+     */
     public static int[] randoms(int[] arr, int origin, int bound) {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 		for (int i = 0; i < arr.length; i++) {
@@ -85,17 +135,21 @@ public class ArraysUtil {
 		return arr;
     }
 
-    /** Fills the array with random numbers between 0 and bound (exclusive). */
+    /**
+     * Fills the array with random numbers between 0 and bound (exclusive).
+     * @param arr Array to be filled.
+     * @param bound Upper bound (exclusive) for generated array values.
+     * @return The given array, for convenience.
+     */
     public static int[] randoms(int[] arr, int bound) {
         return randoms(arr, 0, bound);
     }
 
-    /** Fills the array with random (positive) numbers. */
-    public static int[] randoms(int[] arr) {
-        return randoms(arr, 0, Integer.MAX_VALUE);
-    }
-
-    /** Returns a random element from the array. */
+    /**
+     * Returns a random element from the array.
+     * @param arr Array to choose an element from.
+     * @return Random element chosen from array.
+     */
     public static int chooseRandom(int[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
@@ -103,7 +157,7 @@ public class ArraysUtil {
     /**
      * Chooses a specified number of random integers from the given array.
      * @param arr Array of integers to choose from.
-     * @param amount Number of items.
+     * @param amount Number of items to choose.
      * @return A new array containing the choices.
      */
     public static int[] chooseRandom(int[] arr, int amount) {
@@ -117,34 +171,59 @@ public class ArraysUtil {
         return choices;
     }
 
-    /** Returns a random element from the array. */
+    /**
+     * Returns a random element from the array.
+     * @param arr Array to choose an element from.
+     * @return Random element chosen from array.
+     */
     public static long chooseRandom(long[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
 
-    /** Returns a random element from the array. */
+    /**
+     * Returns a random element from the array.
+     * @param arr Array to choose an element from.
+     * @return Random element chosen from array.
+     */
     public static float chooseRandom(float[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
 
-    /** Returns a random element from the array. */
+    /**
+     * Returns a random element from the array.
+     * @param arr Array to choose an element from.
+     * @return Random element chosen from array.
+     */
     public static double chooseRandom(double[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
 
+    /**
+     * Returns a random element from the array.
+     * @param <T> Array element type.
+     * @param arr Array to choose an element from.
+     * @return Random element chosen from array.
+     */
     public static <T> T chooseRandom(T[] arr) {
         return arr[ThreadLocalRandom.current().nextInt(arr.length)];
     }
 
+    /**
+     * Returns a random element from the list.
+     * @param <T> List element type.
+     * @param list List to choose an element from.
+     * @return Random element chosen from list.
+     */
     public static <T> T chooseRandom(List<T> list) {
         return list.get(ThreadLocalRandom.current().nextInt(list.size()));
     }
 
     /**
-     * Chooses a specified number of random integers from the given array.
-     * @param arr Array of integers to choose from.
-     * @param amount Number of items.
-     * @return A new array containing the choices.
+     * Chooses a specified number of random elements from the given list.
+     * @param <T> List element type.
+     * @param list List to choose from.
+     * @param amount Number of items to choose.
+     * @return A new list containing the chosen items.
      */
     public static <T> List<T> chooseRandom(List<T> list, int amount) {
         if (amount < 0) throw new RuntimeException("Amount is negative");
@@ -152,7 +231,11 @@ public class ArraysUtil {
         return shuffle(new ArrayList<>(list)).subList(0, amount);
     }
 
-    /** Shuffles the given array in-place. */
+    /**
+     * Shuffles the given array in-place.
+     * @param arr Array to shuffle.
+     * @return The given array for convenience.
+     */
 	public static int[] shuffle(int[] arr) {
 		ThreadLocalRandom rand = ThreadLocalRandom.current();
 		for(int i = arr.length - 1; i > 0; i--) {
@@ -161,7 +244,11 @@ public class ArraysUtil {
 		return arr;
 	}
 
-    /** Shuffles the given array in-place. */
+    /**
+     * Shuffles the given array in-place.
+     * @param arr Array to shuffle.
+     * @return The given array for convenience.
+     */
 	public static long[] shuffle(long[] arr) {
 		ThreadLocalRandom rand = ThreadLocalRandom.current();
 		for(int i = arr.length - 1; i > 0; i--) {
@@ -170,7 +257,11 @@ public class ArraysUtil {
 		return arr;
 	}
 
-    /** Shuffles the given array in-place. */
+    /**
+     * Shuffles the given array in-place.
+     * @param arr Array to shuffle.
+     * @return The given array for convenience.
+     */
 	public static float[] shuffle(float[] arr) {
 		ThreadLocalRandom rand = ThreadLocalRandom.current();
 		for(int i = arr.length - 1; i > 0; i--) {
@@ -179,7 +270,11 @@ public class ArraysUtil {
 		return arr;
 	}
 
-    /** Shuffles the given array in-place. */
+    /**
+     * Shuffles the given array in-place.
+     * @param arr Array to shuffle.
+     * @return The given array for convenience.
+     */
 	public static double[] shuffle(double[] arr) {
 		ThreadLocalRandom rand = ThreadLocalRandom.current();
 		for(int i = arr.length - 1; i > 0; i--) {
@@ -188,7 +283,12 @@ public class ArraysUtil {
 		return arr;
 	}
 
-    /** Shuffles the given list in-place. */
+    /**
+     * Shuffles the given list in-place.
+     * @param <T> List element type.
+     * @param list Array to shuffle.
+     * @return The given list for convenience.
+     */
 	public static <T> List<T> shuffle(List<T> list) {
 		ThreadLocalRandom rand = ThreadLocalRandom.current();
 		for(int i = list.size() - 1; i > 0; i--) {
@@ -197,52 +297,316 @@ public class ArraysUtil {
 		return list;
 	}
 
-    /** Swaps array elements in the specified positions. */
+    /**
+     * Swaps two elements in the given array, by index.
+     * @param <T> Array element type.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
     public static <T> void swap(T[] arr, int a, int b) {
 		T temp = arr[a];
 		arr[a] = arr[b];
 		arr[b] = temp;
 	}
 
-    /** Swaps array elements in the specified positions. */
+    /**
+     * Swaps two elements in the given array, by index.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
 	public static void swap(char[] arr, int a, int b) {
 		char temp = arr[a];
 		arr[a] = arr[b];
 		arr[b] = temp;
 	}
 
-    /** Swaps array elements in the specified positions. */
+    /**
+     * Swaps two elements in the given array, by index.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
 	public static void swap(int[] arr, int a, int b) {
 		int temp = arr[a];
 		arr[a] = arr[b];
 		arr[b] = temp;
 	}
 
-    /** Swaps array elements in the specified positions. */
+    /**
+     * Swaps two elements in the given array, by index.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
 	public static void swap(long[] arr, int a, int b) {
 		long temp = arr[a];
 		arr[a] = arr[b];
 		arr[b] = temp;
 	}
 
-    /** Swaps array elements in the specified positions. */
+    /**
+     * Swaps two elements in the given array, by index.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
 	public static void swap(float[] arr, int a, int b) {
 		float temp = arr[a];
 		arr[a] = arr[b];
 		arr[b] = temp;
 	}
 
-    /** Swaps array elements in the specified positions. */
+    /**
+     * Swaps two elements in the given array, by index.
+     * @param arr Array to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
 	public static void swap(double[] arr, int a, int b) {
 		double temp = arr[a];
 		arr[a] = arr[b];
 		arr[b] = temp;
 	}
 
-    /** Swaps list elements in the specified positions. */
+    /**
+     * Swaps two elements in the given list, by index.
+     * @param <T> List element type.
+     * @param list List to swap in.
+     * @param a Index of first element.
+     * @param b Index of the second element.
+     */
 	public static <T> void swapList(List<T> list, int a, int b) {
 		T temp = list.get(a);
         list.set(a, list.get(b));
         list.set(b, temp);
 	}
+
+    /**
+     * Reverses the contents of the given array.
+     * @param arr Array to reverse.
+     * @return The given array for convenience.
+     */
+    public static int[] reverse(int[] arr) {
+        int last = arr.length - 1;
+        for (int i = 0; i < arr.length / 2; i++) {
+            swap(arr, i, last - i);
+        }
+        return arr;
+    }
+
+    /**
+     * Reverses the contents of the given array.
+     * @param arr Array to reverse.
+     * @return The given array for convenience.
+     */
+    public static byte[] reverse(byte[] arr) {
+        int last = arr.length - 1;
+        for (int i = 0; i < arr.length / 2; i++) {
+            arr[i] ^= arr[last - i];
+            arr[last - i] ^= arr[i];
+            arr[i] ^= arr[last - i];
+        }
+        return arr;
+    }
+
+    /**
+     * Reverses the contents of the given array.
+     * @param arr Array to reverse.
+     * @return The given array for convenience.
+     */
+    public static long[] reverse(long[] arr) {
+        int last = arr.length - 1;
+        for (int i = 0; i < arr.length / 2; i++) {
+            arr[i] ^= arr[last - i];
+            arr[last - i] ^= arr[i];
+            arr[i] ^= arr[last - i];
+        }
+        return arr;
+    }
+
+    /**
+     * Reverses the contents of the given array.
+     * @param arr Array to reverse.
+     * @return The given array for convenience.
+     */
+    public static char[] reverse(char[] arr) {
+        int last = arr.length - 1;
+        for (int i = 0; i < arr.length / 2; i++) {
+            arr[i] ^= arr[last - i];
+            arr[last - i] ^= arr[i];
+            arr[i] ^= arr[last - i];
+        }
+        return arr;
+    }
+
+    /**
+     * Reverses the contents of the given array.
+     * @param arr Array to reverse.
+     * @return The given array for convenience.
+     */
+    public static float[] reverse(float[] arr) {
+        int last = arr.length - 1;
+        for (int i = 0; i < arr.length / 2; i++) {
+            float a = arr[i];
+            arr[i] = arr[last - i];
+            arr[last - i] = a;
+        }
+        return arr;
+    }
+
+    /**
+     * Reverses the contents of the given array.
+     * @param arr Array to reverse.
+     * @return The given array for convenience.
+     */
+    public static double[] reverse(double[] arr) {
+        int last = arr.length - 1;
+        for (int i = 0; i < arr.length / 2; i++) {
+            double a = arr[i];
+            arr[i] = arr[last - i];
+            arr[last - i] = a;
+        }
+        return arr;
+    }
+
+    /**
+     * Reverses the contents of the given list.
+     * @param <T> List element type.
+     * @param list List to reverse.
+     * @return The given list for convenience.
+     */
+    public static <T> List<T> reverse(List<T> list) {
+        int len = list.size();
+        int last = len - 1;
+        for (int i = 0; i < len / 2; i++) {
+            T a = list.get(i);
+            list.set(i, list.get(last - i));
+            list.set(last - i, a);
+        }
+        return list;
+    }
+
+    /**
+     * Returns a binary string representation of the given byte array.
+     * @param bytes Byte array to convert.
+     * @return String representing the given byte array.
+     */
+    public static String toBinaryString(byte[] bytes) {
+        StringBuilder strb = new StringBuilder();
+        for (int i = bytes.length - 1; i >= 0; i--) {
+            strb.append(
+                StringsUtil.padLeft(
+                    Integer.toBinaryString(Byte.toUnsignedInt(bytes[i])),
+                    Byte.SIZE,
+                    '0'
+                )
+            );
+        }
+        return strb.toString();
+    }
+
+    /**
+     * Rotates a given square matrix array 90 degrees clockwise.
+     * @param arr The NxN matrix to rotate, as a single array.
+     * @param n Length of one of the sides.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if the array length is not n^2.
+     */
+    public static int[] rotate90(int[] arr, int n) {
+        if (arr == null) throw new NullPointerException();
+        if (n < 0) throw new IllegalArgumentException("n must be nonnegative");
+        if (arr.length != n * n) throw new IllegalArgumentException("arr length not n square");
+        for (int layer = 0; layer < n / 2; layer++) {
+            int first = layer;
+            int last = n - 1 - layer;
+            for (int i = first; i < last; i++) {
+                int offset = i - first;
+                int top = arr[first * n + i];
+                arr[first * n + i] = arr[(last - offset) * n + first];
+                arr[(last - offset) * n + first] = arr[last * n + (last - offset)];
+                arr[last * n + (last - offset)] = arr[i * n + last];
+                arr[i * n + last] = top;
+            }
+        }
+        return arr;
+    }
+
+    /**
+     * Reflects a (rows x N) matrix over the horizontal axis.
+     * @param arr The matrix to reflect.
+     * @param rows The number of rows in the matrix.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if (array length / rows) is not a whole number.
+     */
+    public static int[] reflectOverHorizontal(int[] arr, int rows) {
+        if (arr == null) throw new NullPointerException();
+        if (rows <= 0) throw new IllegalArgumentException("rows must be positive");
+        if (arr.length % rows != 0) throw new IllegalArgumentException("array length must be divisible by number of rows");
+        int cols = arr.length / rows;
+        for (int r = 0; r < (rows / 2); r++) {
+            for (int c = 0; c < cols; c++) {
+                int ai = r * cols + c;
+                int bi = (rows - r - 1) * cols + c;
+                arr[ai] ^= arr[bi];
+                arr[bi] ^= arr[ai];
+                arr[ai] ^= arr[bi];
+            }
+        }
+        return arr;
+    }
+
+    /**
+     * Reflects a (rows x N) matrix over the vertical axis.
+     * @param arr The matrix to reflect.
+     * @param rows The number of rows in the matrix.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if (array length / rows) is not a whole number.
+     */
+    public static int[] reflectOverVertical(int[] arr, int rows) {
+        if (arr == null) throw new NullPointerException();
+        if (rows <= 0) throw new IllegalArgumentException("rows must be positive");
+        if (arr.length % rows != 0) throw new IllegalArgumentException("array length must be divisible by number of rows");
+        int cols = arr.length / rows;
+        for (int c = 0; c < (cols / 2); c++) {
+            for (int r = 0; r < rows; r++) {
+                int ai = r * cols + c;
+                int bi = r * cols + (cols - c - 1);
+                arr[ai] ^= arr[bi];
+                arr[bi] ^= arr[ai];
+                arr[ai] ^= arr[bi];
+            }
+        }
+        return arr;
+    }
+
+    /**
+     * Reflects a given square matrix over the diagonal (line from bottomleft - topright).
+     * @param arr The NxN matrix to reflect.
+     * @param n Length of one of the sides.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if the array length is not n^2.
+     */
+    public static int[] reflectOverDiagonal(int[] arr, int n) {
+        if (arr == null) throw new NullPointerException();
+        if (n < 0) throw new IllegalArgumentException("n must be nonnegative");
+        if (arr.length != n * n) throw new IllegalArgumentException("arr length not n square");
+        reflectOverVertical(arr, n);
+        rotate90(arr, n);
+        return arr;
+    }
+
+    /**
+     * Reflects a given square matrix over the anti-diagonal (line from topleft - bottomright).
+     * @param arr The NxN matrix to reflect.
+     * @param n Length of one of the sides.
+     * @return The mutated array.
+     * @throws IllegalArgumentException if the array length is not n^2.
+     */
+    public static int[] reflectOverAntiDiagonal(int[] arr, int n) {
+        rotate90(arr, n);
+        reflectOverVertical(arr, n);
+        return arr;
+    }
 }
