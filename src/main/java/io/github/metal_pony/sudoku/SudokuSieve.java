@@ -350,6 +350,8 @@ public class SudokuSieve {
      * Each mask will be applied to the Sieve's solution, creating a puzzle.
      * Each puzzle will then be solved, and unique solutions collected.
      * Solutions different from this Sieve's will be used to derive new Items.
+     *
+     * If numThreads is less than 1, an IllegalArgumentException will be thrown by ThreadPoolExecutor.
      * @param masks Collection of SudokuMask that will serve as filters applied
      * to the solution.
      * @param numThreads Number of threads to split the work.
