@@ -2,23 +2,115 @@ package io.github.metal_pony.sudoku;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvFileSource;
 
 import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 
 import static io.github.metal_pony.sudoku.Constants.*;
 
 public class TestSudokuSieve {
+    // Location of SudokuSieves json files.
+    private static final String FIXTURES_RESOURCE_LVL2 = "/sieve-fixtures-lvl-2.json";
+    private static final String FIXTURES_RESOURCE_LVL3 = "/sieve-fixtures-lvl-3.json";
+
+    // Reads the json test fixtures (array of SudokuSieve) from resources.
+    private static List<SudokuSieve> readTestFixtures(String resourcePath) {
+        InputStream fixtureStream = TestSudokuSieve.class.getResourceAsStream(resourcePath);
+        Gson gson = new Gson();
+        JsonReader reader = gson.newJsonReader(new InputStreamReader(fixtureStream));
+
+        List<SudokuSieve> result = new ArrayList<>();
+
+        try {
+            reader.beginArray();
+            while (reader.hasNext()) {
+                result.add(readSieveJson(reader));
+            }
+            reader.endArray();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    // Reads an individual SudokuSieve json object.
+    private static SudokuSieve readSieveJson(JsonReader reader) throws IOException {
+        if (reader.peek() == JsonToken.NULL) {
+            reader.nextNull();
+            return null;
+        }
+        Sudoku config = null;
+        List<BigInteger> items = new ArrayList<>();
+
+        reader.beginObject();
+        while (reader.hasNext()) {
+            String name = reader.nextName();
+
+            if ("config".equals(name)) {
+                String value = reader.nextString();
+                config = new Sudoku(value);
+                continue;
+            } else if ("items".equals(name)) {
+                reader.beginArray();
+                while (reader.hasNext()) {
+                    String itemStr = reader.nextString();
+                    BigInteger bigItem = new BigInteger(itemStr);
+                    items.add(bigItem);
+                }
+                reader.endArray();
+            } else {
+                throw new com.google.gson.JsonParseException(
+                    String.format("Unexpected name in sudoku sieve json: %s", name)
+                );
+            }
+        }
+        SudokuSieve sieve = new SudokuSieve(config);
+        items.forEach(item -> {
+            sieve.rawAdd(new SudokuMask(item));
+        });
+        reader.endObject();
+
+        return sieve;
+    }
+
+    /** List of valid SudokuSieves, seeded with digitCombos(2).*/
+    private static List<SudokuSieve> fixtures2;
+    /** List of valid SudokuSieves, seeded with digitCombos(3).*/
+    private static List<SudokuSieve> fixtures3;
+
+    @BeforeAll
+    static void beforeAll() {
+        fixtures2 = readTestFixtures(FIXTURES_RESOURCE_LVL2);
+        if (fixtures2.isEmpty())
+            throw new RuntimeException("Test fixtures2 did not load properly!");
+        for (SudokuSieve f : fixtures2) {
+            if (f.isEmpty()) {
+                throw new RuntimeException("One or more sieve in test fixture2 is empty!");
+            }
+        }
+        fixtures3 = readTestFixtures(FIXTURES_RESOURCE_LVL3);
+        if (fixtures3.isEmpty())
+            throw new RuntimeException("Test fixtures3 did not load properly!");
+        for (SudokuSieve f : fixtures3) {
+            if (f.isEmpty()) {
+                throw new RuntimeException("One or more sieve in test fixture3 is empty!");
+            }
+        }
+    }
+
     private final String configFixtureStr = "218574639573896124469123578721459386354681792986237415147962853695318247832745961";
     private Sudoku configFixture;
     private SudokuSieve sieve;
@@ -33,69 +125,141 @@ public class TestSudokuSieve {
         incompleteGrid = Sudoku.configSeed();
     }
 
-    // @ParameterizedTest(name = "seedSieve(grid={0}, level={1})")
-    @CsvFileSource(resources = "/sieve.csv", delimiter = ';', numLinesToSkip = 1, maxCharsPerColumn = 1<<20)
-    void seedSieve(String gridStr, int level, int expectedSieveSize, String expectedItems) {
-        Gson gson = new Gson();
-
-        String[] expectedItemStrs = gson.fromJson(expectedItems, String[].class);
-        assertEquals(expectedSieveSize, expectedItemStrs.length);
-        Arrays.sort(expectedItemStrs, String::compareTo);
-
-        Sudoku grid = new Sudoku(gridStr);
-        SudokuSieve sieve = new SudokuSieve(grid);
-        sieve.seed(sieve.fullPrintCombos(level));
-        assertEquals(expectedSieveSize, sieve.size());
-
-        // Convert sieve items to String[] and sort.
-        List<String> items = new ArrayList<>();
-        sieve.items().forEach(item -> items.add(item.toString()));
-        String[] actualItemStrs = items.toArray(new String[items.size()]);
-        Arrays.sort(actualItemStrs, String::compareTo);
-
-        assertArrayEquals(expectedItemStrs, actualItemStrs);
+    @Test
+    void fixtureConfigsAreValid() {
+        assertTrue(fixtures2.size() > 0);
+        fixtures2.forEach(f -> {
+            Sudoku config = f.config();
+            assertTrue(config.isSolved());
+            assertTrue(config.isSolved());
+        });
+        assertTrue(fixtures3.size() > 0);
+        fixtures3.forEach(f -> {
+            Sudoku config = f.config();
+            assertTrue(config.isSolved());
+            assertTrue(config.isSolved());
+        });
     }
 
-    // Same thing as above, but sieve seeds with 16 threads.
-    // This test is highly redundant, so it is disabled for CI checks.
-    @ParameterizedTest(name = "seedSieve(grid={0}, level={1})")
-    @CsvFileSource(resources = "/sieve.csv", delimiter = ';', numLinesToSkip = 1, maxCharsPerColumn = 1<<20)
-    void seedSieveParallel(String gridStr, int level, int expectedSieveSize, String expectedItems) {
-        Gson gson = new Gson();
+    @Test
+    void seed_resultsMatchFixture2() {
+        for (int i = 0; i < fixtures2.size(); i++) {
+            SudokuSieve fixture = fixtures2.get(i);
+            Sudoku config = fixture.config();
+            List<SudokuMask> fixtureItems = fixture.items(new ArrayList<>());
 
-        String[] expectedItemStrs = gson.fromJson(expectedItems, String[].class);
-        assertEquals(expectedSieveSize, expectedItemStrs.length);
-        Arrays.sort(expectedItemStrs, String::compareTo);
+            SudokuSieve subject = new SudokuSieve(config);
+            assertEquals(0, subject.size());
+            subject.seed(subject.digitCombos(2));
+            List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
 
-        Sudoku grid = new Sudoku(gridStr);
-        SudokuSieve sieve = new SudokuSieve(grid);
-        sieve.seedThreaded(sieve.fullPrintCombos(level), 16);
-        assertEquals(expectedSieveSize, sieve.size());
+            assertEquals(fixture.size(), subject.size());
+            for (int j = 0; j < fixtureItems.size(); j++) {
+                SudokuMask fItem = fixtureItems.get(j);
+                SudokuMask subjItem = subjectItems.get(j);
 
-        // Convert sieve items to String[] and sort.
-        List<String> items = new ArrayList<>();
-        sieve.items().forEach(item -> items.add(item.toString()));
-        String[] actualItemStrs = items.toArray(new String[items.size()]);
-        Arrays.sort(actualItemStrs, String::compareTo);
-
-        assertArrayEquals(expectedItemStrs, actualItemStrs);
-    }
-
-    @Test()
-    void seedSieveThreaded() {
-        for (int numThreads = 1; numThreads < 5; numThreads++) {
-            sieve = new SudokuSieve(new Sudoku(SieveItemsFixture.grid));
-            sieve.seedThreaded(sieve.fullPrintCombos(3), numThreads);
-
-            Set<SudokuMask> sieveItems = new HashSet<>();
-            sieveItems.addAll(sieve.items());
-
-            assertEquals(sieve.size(), sieveItems.size());
-            assertEquals(SieveItemsFixture.items.size(), sieveItems.size());
-
-            for (SudokuMask expectedItem : SieveItemsFixture.items) {
-                assertTrue(sieveItems.contains(expectedItem));
+                assertEquals(fItem, subjItem, String.format(
+                    "Expected item was not found in seeded sieve:\n[%s] %s",
+                    fItem.toBigInt().toString(), fItem.toStringDots()
+                ));
             }
+        }
+    }
+
+    @Test
+    void seed_resultsMatchFixture3() {
+        for (int i = 0; i < fixtures3.size(); i++) {
+            SudokuSieve fixture = fixtures3.get(i);
+            Sudoku config = fixture.config();
+            List<SudokuMask> fixtureItems = fixture.items(new ArrayList<>());
+
+            SudokuSieve subject = new SudokuSieve(config);
+            assertEquals(0, subject.size());
+            subject.seed(subject.digitCombos(3));
+            List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
+
+            assertEquals(fixture.size(), subject.size());
+            for (int j = 0; j < fixtureItems.size(); j++) {
+                SudokuMask fItem = fixtureItems.get(j);
+                SudokuMask subjItem = subjectItems.get(j);
+
+                assertEquals(fItem, subjItem, String.format(
+                    "Expected item was not found in seeded sieve:\n[%s] %s",
+                    fItem.toBigInt().toString(), fItem.toStringDots()
+                ));
+            }
+        }
+    }
+
+    @Test
+    void seed_whenMasksIsNull_throws() {
+        SudokuSieve subject = new SudokuSieve(Sudoku.generateConfig());
+        assertThrows(NullPointerException.class, () -> {
+            subject.seedThreaded(null);
+        });
+    }
+
+    @Test
+    void seedThreaded_whenNumThreadsIsNotPositive_throws() {
+        SudokuSieve subject = new SudokuSieve(Sudoku.generateConfig());
+        List.of(0, -1, -2, -4, -10, -100).forEach(numThreads -> {
+            assertThrows(IllegalArgumentException.class, () -> {
+                subject.seedThreaded(new ArrayList<>(), numThreads);
+            });
+        });
+    }
+
+    @Test
+    void seedThreaded_resultsMatchFixture2() {
+        for (int i = 0; i < fixtures2.size(); i++) {
+            SudokuSieve fixture = fixtures2.get(i);
+            Sudoku config = fixture.config();
+            List<SudokuMask> fixtureItems = fixture.items(new ArrayList<>());
+
+            List.of(1, 2, 8, 16, 64).forEach(numThreads -> {
+                SudokuSieve subject = new SudokuSieve(config);
+                assertEquals(0, subject.size());
+                subject.seedThreaded(subject.digitCombos(2), 1);
+                List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
+
+                assertEquals(fixture.size(), subject.size());
+                for (int j = 0; j < fixtureItems.size(); j++) {
+                    SudokuMask fItem = fixtureItems.get(j);
+                    SudokuMask subjItem = subjectItems.get(j);
+
+                    assertEquals(fItem, subjItem, String.format(
+                        "Expected item was not found in seeded sieve:\n[%s] %s",
+                        fItem.toBigInt().toString(), fItem.toStringDots()
+                    ));
+                }
+            });
+        }
+    }
+
+    @Test
+    void seedThreaded_resultsMatchFixture3() {
+        for (int i = 0; i < fixtures3.size(); i++) {
+            SudokuSieve fixture = fixtures3.get(i);
+            Sudoku config = fixture.config();
+            List<SudokuMask> fixtureItems = fixture.items(new ArrayList<>());
+
+            List.of(1, 2, 8, 16, 64).forEach(numThreads -> {
+                SudokuSieve subject = new SudokuSieve(config);
+                assertEquals(0, subject.size());
+                subject.seedThreaded(subject.digitCombos(3), 1);
+                List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
+
+                assertEquals(fixture.size(), subject.size());
+                for (int j = 0; j < fixtureItems.size(); j++) {
+                    SudokuMask fItem = fixtureItems.get(j);
+                    SudokuMask subjItem = subjectItems.get(j);
+
+                    assertEquals(fItem, subjItem, String.format(
+                        "Expected item was not found in seeded sieve:\n[%s] %s",
+                        fItem.toBigInt().toString(), fItem.toStringDots()
+                    ));
+                }
+            });
         }
     }
 

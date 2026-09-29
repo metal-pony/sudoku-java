@@ -100,8 +100,14 @@
         <directory>src/main/java/resources</directory>
         <targetPath>resources</targetPath>
         <includes>
-          <include>17-puzzle-records.json</include>
           <include>sudoku-17.txt</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/test/java/resources</directory>
+        <targetPath>resources</targetPath>
+        <includes>
+          <include>**/*.json</include>
         </includes>
       </resource>
     </resources>
