@@ -23,11 +23,6 @@ import io.github.metal_pony.sudoku.Sudoku.SolutionIterator;
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
 
-import io.github.metal_pony.sudoku.GeneratedPuzzles;
-import io.github.metal_pony.sudoku.PuzzleEntry;
-import io.github.metal_pony.sudoku.Sudoku;
-import io.github.metal_pony.sudoku.SudokuSieve;
-
 public class TestSudoku {
 
     final Class<NullPointerException> nullErr = NullPointerException.class;
@@ -543,24 +538,6 @@ public class TestSudoku {
             assertTrue(configFixture.isFull());
             assertFalse(configFixture.isEmpty());
         // }
-    }
-
-    // Test disabled while json file is rebuilt
-    // @Test
-    void puzzleByteBreakdownAndRehydration() {
-        PuzzleEntry[] sudoku17 = PuzzleEntry.all17();
-        int i = 0;
-        for (PuzzleEntry pEntry : sudoku17) {
-            Sudoku p1 = pEntry.puzzle();
-
-            byte[] bytes = p1.toByteArray();
-            Sudoku p2 = new Sudoku(bytes);
-
-            assertEquals(p1.toString(), p2.toString());
-            i++;
-        }
-        // System.out.printf("Read %d 17-clues puzzles, and tested byte representations on each.\n", sudoku17.length);
-        assertEquals(sudoku17.length, i);
     }
 
     @Test
