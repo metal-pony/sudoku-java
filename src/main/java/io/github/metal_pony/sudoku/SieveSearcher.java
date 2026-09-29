@@ -503,7 +503,7 @@ public class SieveSearcher {
             strb.append(' ');
           }
         }
-        System.out.printf("[%s] checked %12d; seen 0x%s; stack {%s}\n", LocalDateTime.now().toString(), checked, seenMask.toHexString(), strb.toString());
+        System.out.printf("[%s] checked %12d; seen 0x%s; stack {%s}\n", LocalDateTime.now().toString(), checked, seenMask.toBigInt().toString(16), strb.toString());
       }
       // String maskStr = grid.filterStr(mask);
       // System.out.printf("[%2d] %s%s\n", sieve.size(), " ".repeat(choiceStack.size()), maskStr);
