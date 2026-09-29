@@ -27,6 +27,17 @@ import io.github.metal_pony.sudoku.util.Counting;
 public class Main {
   private Main() {}
 
+  /**
+   * Gets a List of all known 17-clue sudoku puzzles from a resource text file.
+   * @return A new List containing the parsed 17-clue sudoku puzzles.
+   * @throws IOException
+   */
+  public static List<Sudoku> sudoku17() throws IOException {
+    return readAllLines(
+      resourceStream("sudoku-17.txt"), new ArrayList<>()
+    ).stream().map(pStr -> new Sudoku(pStr)).toList();
+  }
+
   static final int MAX_THREADS = Runtime.getRuntime().availableProcessors();
   static final String RESOURCES_DIR = "resources";
 
@@ -43,21 +54,17 @@ public class Main {
     }
   }
 
-  static InputStream resourceStream(String name) {
+  private static InputStream resourceStream(String name) {
     return Main.class.getResourceAsStream(String.format("/%s/%s", RESOURCES_DIR, name));
   }
 
-  static void readAllLines(InputStream inStream, List<String> lines) {
-    try (
-      BufferedReader reader = new BufferedReader(new InputStreamReader(inStream));
-    ) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        lines.add(line.trim());
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
+  private static List<String> readAllLines(InputStream inStream, List<String> lines) throws IOException {
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inStream));
+    String line;
+    while ((line = reader.readLine()) != null) {
+      lines.add(line.trim());
     }
+    return lines;
   }
 
   static void repeatThreadedAndBlock(Runnable runnable, int times, int threads) {
