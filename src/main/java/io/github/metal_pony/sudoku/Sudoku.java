@@ -1993,11 +1993,11 @@ public class Sudoku {
                     if (flag == 2) return false;
                     if (flag == 1) count++;
                 }
-                // For each empty cell, there must be at least one branch
-                // that has a single solution.
+                // For each empty cell, there must be at least TWO branches
+                //   that has a single solution.
                 // If there were no branches with solutions (all were invalid),
-                // then the puzzle was probably invalid to begin with.
-                if (count < 1) return false;
+                //   then the puzzle was probably invalid to begin with.
+                if (count < 2) return false;
             }
         }
         return true;
@@ -2088,7 +2088,7 @@ public class Sudoku {
      * @throws IllegalArgumentException if this grid is not solved.
      */
     private String dc(int level) {
-        SudokuSieve sieve = new SudokuSieve(toArray());
+        SudokuSieve sieve = new SudokuSieve(this);
         sieve.seed(sieve.digitCombos(level));
         return fpFromSieve(level, sieve);
     }
@@ -2167,7 +2167,7 @@ public class Sudoku {
      * @throws IllegalArgumentException if this grid is not solved.
      */
     public String dc(int level, int numThreads) {
-        SudokuSieve sieve = new SudokuSieve(toArray());
+        SudokuSieve sieve = new SudokuSieve(this);
         if (numThreads == 1) {
             sieve.seed(sieve.digitCombos(level));
         } else {
@@ -2189,7 +2189,7 @@ public class Sudoku {
      * @throws IllegalArgumentException if this grid is not solved.
      */
     public String fp(int level, int numThreads) {
-        SudokuSieve sieve = new SudokuSieve(toArray());
+        SudokuSieve sieve = new SudokuSieve(this);
         if (numThreads == 1) {
             sieve.seed(sieve.fullPrintCombos(level));
         } else {
@@ -2505,6 +2505,7 @@ public class Sudoku {
         for (Sudoku _s : solutions()) {
             if (++count > 1) break;
         }
+        solutionsFlag = (count > 1) ? 2 : count;
 
         return count;
     }

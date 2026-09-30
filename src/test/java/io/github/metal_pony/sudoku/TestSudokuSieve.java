@@ -2,7 +2,6 @@ package io.github.metal_pony.sudoku;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
@@ -11,13 +10,12 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
-import com.google.gson.stream.JsonWriter;
+import com.google.gson.JsonObject;
+
+import io.github.metal_pony.sudoku.util.ArraysUtil;
 
 import static io.github.metal_pony.sudoku.Constants.*;
 
@@ -28,62 +26,28 @@ public class TestSudokuSieve {
 
     // Reads the json test fixtures (array of SudokuSieve) from resources.
     private static List<SudokuSieve> readTestFixtures(String resourcePath) {
-        InputStream fixtureStream = TestSudokuSieve.class.getResourceAsStream(resourcePath);
-        Gson gson = new Gson();
-        JsonReader reader = gson.newJsonReader(new InputStreamReader(fixtureStream));
-
         List<SudokuSieve> result = new ArrayList<>();
+        Gson gson = new Gson();
+        InputStream fixtureStream = TestSudokuSieve.class.getResourceAsStream(resourcePath);
+        JsonObject[] readData = gson.fromJson(
+            gson.newJsonReader(new InputStreamReader(fixtureStream)),
+            JsonObject[].class
+        );
 
-        try {
-            reader.beginArray();
-            while (reader.hasNext()) {
-                result.add(readSieveJson(reader));
-            }
-            reader.endArray();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return result;
-    }
+        for (JsonObject obj : readData) {
+            String config = gson.fromJson(obj.get("config"), String.class);
+            String[] items = gson.fromJson(obj.get("items"), String[].class);
 
-    // Reads an individual SudokuSieve json object.
-    private static SudokuSieve readSieveJson(JsonReader reader) throws IOException {
-        if (reader.peek() == JsonToken.NULL) {
-            reader.nextNull();
-            return null;
-        }
-        Sudoku config = null;
-        List<BigInteger> items = new ArrayList<>();
-
-        reader.beginObject();
-        while (reader.hasNext()) {
-            String name = reader.nextName();
-
-            if ("config".equals(name)) {
-                String value = reader.nextString();
-                config = new Sudoku(value);
-                continue;
-            } else if ("items".equals(name)) {
-                reader.beginArray();
-                while (reader.hasNext()) {
-                    String itemStr = reader.nextString();
-                    BigInteger bigItem = new BigInteger(itemStr);
-                    items.add(bigItem);
+            SudokuSieve sieve = new SudokuSieve(new Sudoku(config));
+            if (items != null) {
+                for (String itemStr : items) {
+                    sieve.add(new SudokuMask(new BigInteger(itemStr)));
                 }
-                reader.endArray();
-            } else {
-                throw new com.google.gson.JsonParseException(
-                    String.format("Unexpected name in sudoku sieve json: %s", name)
-                );
             }
+            result.add(sieve);
         }
-        SudokuSieve sieve = new SudokuSieve(config);
-        items.forEach(item -> {
-            sieve.rawAdd(new SudokuMask(item));
-        });
-        reader.endObject();
 
-        return sieve;
+        return result;
     }
 
     /** List of valid SudokuSieves, seeded with digitCombos(2).*/
@@ -96,33 +60,17 @@ public class TestSudokuSieve {
         fixtures2 = readTestFixtures(FIXTURES_RESOURCE_LVL2);
         if (fixtures2.isEmpty())
             throw new RuntimeException("Test fixtures2 did not load properly!");
-        for (SudokuSieve f : fixtures2) {
-            if (f.isEmpty()) {
-                throw new RuntimeException("One or more sieve in test fixture2 is empty!");
-            }
-        }
+
         fixtures3 = readTestFixtures(FIXTURES_RESOURCE_LVL3);
         if (fixtures3.isEmpty())
             throw new RuntimeException("Test fixtures3 did not load properly!");
-        for (SudokuSieve f : fixtures3) {
-            if (f.isEmpty()) {
-                throw new RuntimeException("One or more sieve in test fixture3 is empty!");
-            }
-        }
     }
 
-    private final String configFixtureStr = "218574639573896124469123578721459386354681792986237415147962853695318247832745961";
-    private Sudoku configFixture;
-    private SudokuSieve sieve;
-    Sudoku validGrid;
-    Sudoku incompleteGrid;
-
-    @BeforeEach
-    void before() {
-        configFixture = new Sudoku(configFixtureStr);
-        sieve = new SudokuSieve(configFixture.toArray());
-        validGrid = Sudoku.configSeed().solution();
-        incompleteGrid = Sudoku.configSeed();
+    /** Returns a random sieve fixture (either 2 or 3).*/
+    static SudokuSieve getRandomFixture() {
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
+        List<SudokuSieve> list = (rand.nextDouble() < 0.5) ? fixtures2 : fixtures3;
+        return ArraysUtil.chooseRandom(list);
     }
 
     @Test
@@ -265,133 +213,126 @@ public class TestSudokuSieve {
 
     @Test
     void testRemoveOverlapping_thenAddItemsBack() {
-        final int EXPECTED_SIEVE_SIZE = 56;
-        final int EXPECTED_REMOVED_ITEMS_SIZE = 8;
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
+        SudokuSieve fixture = fixtures3.get(rand.nextInt(fixtures3.size()));
 
-        populateSieveForAllDigitCombos(2);
-        assertEquals(sieve.size(), EXPECTED_SIEVE_SIZE);
-        // System.out.println(sieve.toString());
-        List<SudokuMask> removed = sieve.removeOverlapping(0);
-        // System.out.println("Removed:");
-        // System.out.println(configFixtureStr);
-        // removed.forEach(r -> {
-        //     System.out.println(configFixture.filter(r).toString());
-        // });
-        assertEquals(removed.size(), EXPECTED_REMOVED_ITEMS_SIZE);
-        assertEquals(sieve.size(), EXPECTED_SIEVE_SIZE - EXPECTED_REMOVED_ITEMS_SIZE);
+        // Only modify subject; never fixture.
+        SudokuSieve subject = new SudokuSieve(fixture.config());
+        fixture.items(new ArrayList<>()).forEach(subject::add);
+        assertEquals(fixture.items(), subject.items());
 
-        // Attempt to add the items back
-        removed.forEach(item -> sieve.add(item));
-        removed.clear();
-        assertEquals(removed.size(), 0);
-        assertEquals(sieve.size(), EXPECTED_SIEVE_SIZE);
+        for (int ci = 0; ci < SPACES; ci++) {
+            List<SudokuMask> removed = subject.removeOverlapping(ci);
+            assertEquals(fixture.size(), subject.size() + removed.size());
+
+            // Removed items overlap with the cell
+            for (SudokuMask removedItem : removed) {
+                assertTrue(removedItem.testBit(ci));
+            }
+
+            // Remaining items do NOT overlap with the cell
+            for (SudokuMask remainingItem : subject.items()) {
+                assertFalse(remainingItem.testBit(ci));
+            }
+
+            // Removed items can be added back again
+            for (SudokuMask removedItem : removed) {
+                assertTrue(subject.add(removedItem));
+            }
+
+            // Items are now back in sync
+            assertEquals(fixture.items(), subject.items());
+        }
     }
 
     @Test
     void testIsDerivative() {
-        // Always true
-        assertTrue(sieve.isDerivative(new SudokuMask()));
+        SudokuSieve subject = ArraysUtil.chooseRandom(fixtures3);
+        // Do NOT modify list or items directly because they are shared among the tests below.
+        List<SudokuMask> items = subject.items(new ArrayList<>());
 
-        // Returns true if the item is a derivative
-        SudokuMask item = new SudokuMask("001000001000000000001000001000000000000000000000000000000000000000000000000000000");
-        sieve.rawAdd(item);
-        ThreadLocalRandom rand = ThreadLocalRandom.current();
-        for (int t = 0; t < 100; t++) {
-            SudokuMask clearlyDerivative = new SudokuMask(item);
-            while (clearlyDerivative.bitCount() <= item.bitCount()) {
-                clearlyDerivative.setBit(rand.nextInt(81));
+        // Always true when mask is empty, even if the sieve is empty.
+        assertTrue(subject.isDerivative(new SudokuMask()));
+        SudokuSieve emptySieve = new SudokuSieve(Sudoku.generateConfig());
+        assertTrue(emptySieve.isDerivative(new SudokuMask()));
+
+        for (int i = 0; i < items.size(); i++) {
+            // Do NOT modify this item.
+            SudokuMask item = items.get(i);
+
+            // Existing items are always considered derivatives.
+            assertTrue(subject.isDerivative(item));
+
+            // Existing items + bits = always a derivative.
+            for (int bit : new SudokuMask(item).flip().toIndices()) {
+                assertTrue(subject.isDerivative(new SudokuMask(item).setBit(bit)));
             }
-            assertTrue(sieve.isDerivative(clearlyDerivative));
-        }
 
-        sieve = new SudokuSieve(new Sudoku(SieveItemsFixture.grid));
-        SieveItemsFixture.items.forEach(_item -> sieve.rawAdd(_item));
-        // Now ALL SieveItemsFixture.items (and subsets derived from) should be flagged as derivative
-        SieveItemsFixture.items.forEach(_item -> {
-            assertTrue(sieve.isDerivative(_item));
-        });
-    }
+            // Existing items - bits = NEVER a derivative.
+            for (int bit : item.toIndices()) {
+                assertFalse(subject.isDerivative(new SudokuMask(item).unsetBit(bit)));
+            }
 
-    @Test
-    void test_validate() {
-        sieve = new SudokuSieve(new Sudoku(SieveItemsFixture.grid));
-        SieveItemsFixture.items.forEach(_item -> {
-            assertTrue(sieve.add(_item));
-        });
-    }
-
-    @Test
-    void testIsDerivate_whenAddingDuplicate_returnsTrue() {
-        SudokuMask[] expectedSieveItems = new SudokuMask[] {
-            new SudokuMask("001000001000000000001000001000000000000000000000000000000000000000000000000000000"),
-            new SudokuMask("000000000000000000000000000100001000000000000100001000000000000000000000000000000"),
-            new SudokuMask("000000000000000000000000000000000000000000000000000000000001100000001100000000000"),
-            new SudokuMask("101000000000000000000000000000000000000000000000000000000000000000000000101000000"),
-            new SudokuMask("000000000000000000000000000000000000000011000000000000000000000000011000000000000"),
-            new SudokuMask("000000000000000000000000000100000100100000100000000000000000000000000000000000000"),
-            new SudokuMask("000000000000000000000000000000000000000000101000000000000000000000000101000000000"),
-            new SudokuMask("000000000000000000000000000101000000000000000000000000101000000000000000000000000"),
-            new SudokuMask("000000000000000000000000000000000000000000000000000000100010000100010000000000000"),
-            new SudokuMask("000000000000000000011000000000000000000000000101000000000000000110000000000000000"),
-            new SudokuMask("000000000000000000000000000000000000100010000010010000000000000000000000110000000"),
-            new SudokuMask("011000000000000000000000000001000010000000000010000010000000000000000000000000000"),
-            new SudokuMask("000010010000000000000001010000000000000000000000011000000000000000000000000000000"),
-            new SudokuMask("000000000000000000000000000000000000000000000000101000001001000000000000001100000"),
-            new SudokuMask("000000000000000000000000000001000001000000000001000010000000000000000000000000011"),
-            new SudokuMask("000000000100000001100000100000000000000000000000000101000000000000000000000000000"),
-            new SudokuMask("000101000000000000000000000000110000000000000000000000000000000000000000000011000"),
-            new SudokuMask("000000000000000000000000000000000000011000000000000000010000010001000010000000000"),
-            new SudokuMask("001100000100100000000000000000000000000000000000000000000000000001001000100001000"),
-            new SudokuMask("000000000000100100000100001000000000000000000000000000100000100000000000100000001"),
-            new SudokuMask("000000000011000000000000000000000000000000000000000000001000001000100001010100000"),
-            new SudokuMask("100010000010000010000010010110000000000000000000000000000000000000000000000000000"),
-            new SudokuMask("000000000000000000110000000000000000000000000000000000010010000100000010000010010"),
-            new SudokuMask("010000100000001100010100000000000000000101000000000000000000000000000000000000000"),
-            new SudokuMask("000000000000000101000000000000000000000000000000000110000000000000010010000010001"),
-            new SudokuMask("000000000000000000000000101000010010010010000010000001000000110000000000000000000"),
-            new SudokuMask("000000000000100010000010001010000010000010001010100000000000000000000000000000000"),
-            new SudokuMask("000001100000001001000000000000100001001100000001000100000000000000000000000000000"),
-            new SudokuMask("010001000000000000100100000001100000001001000000000000110000000000000000000000000"),
-            new SudokuMask("000000101000011000000000000000001001000100010000000000000110000000000000000000110"),
-            new SudokuMask("001000010001100000000001001000000110000000000000000000000000101000101000000000000"),
-            new SudokuMask("000000000000110000000000000000001010000010010110000000000100100010001000100000100"),
-            new SudokuMask("000010001010010000001000010000000000000000110000000000001100000010000001000100100"),
-            new SudokuMask("010010000010000100000100010000000000000001100000001010000000000000010001000100001"),
-            new SudokuMask("000100001100010000001000100000011000010000010100000001000100010011000000000001100"),
-            new SudokuMask("000001001000010001101000000000101000001000010100000100010100000010000010000010100"),
-            new SudokuMask("000000011001010000001001000000001100100000010100010000000100001010100000010000100"),
-            new SudokuMask("100000001000010010001010000010001000000000011100100000000101000010000100001000100"),
-            new SudokuMask("010000001000010100001100000001001000000001010100000010100100000010010000000000101"),
-            new SudokuMask("001010000010100000000000011100000010000010100010001000001000100000001001100100000"),
-            new SudokuMask("001000100000101000010000001000000011000110000011000000000010100100001000100000010"),
-            new SudokuMask("001001000000100001100000001000100010001010000010000100010000100000001010100010000"),
-            new SudokuMask("000010100010001000010000010100000001000100100001001000001010000100000001000100010"),
-            new SudokuMask("000110000110000000000000110100010000010000100000001001001000010001000001000101000"),
-            new SudokuMask("000011000010000001100000010100100000001000100000001100011000000000000011000110000"),
-            new SudokuMask("000100100100001000010000100000010001010100000001000001000010010101000000000001010"),
-            new SudokuMask("000000110001001000010001000000000101100100000001010000000010001100100000010000010"),
-            new SudokuMask("100000100000001010010010000010000001000100001001100000000011000100000100001000010"),
-            new SudokuMask("000100010101000000000001100000010100110000000000010001000000011001100000010001000"),
-            new SudokuMask("100100000100000010000010100010010000010000001000100001000001010001000100001001000"),
-            new SudokuMask("010100000100000100000100100001010000010001000000000011100000010001010000000001001"),
-            new SudokuMask("000001010001000001100001000000100100101000000000010100010000001000100010010010000"),
-            new SudokuMask("100001000000000011100010000010100000001000001000100100010001000000000110001010000"),
-            new SudokuMask("100000010001000010000011000010000100100000001000110000000001001000100100011000000"),
-            new SudokuMask("010000010001000100000101000001000100100001000000010010100000001000110000010000001"),
-            new SudokuMask("110000000000000110000110000011000000000001001000100010100001000000010100001000001"),
-        };
-
-        populateSieveForAllDigitCombos(2);
-
-        for (SudokuMask dupe : expectedSieveItems) {
-            assertTrue(sieve.isDerivative(dupe));
+            // Combinations of items are always derivatives.
+            for (int j = i + 1; j < items.size(); j++) {
+                SudokuMask comboItem = new SudokuMask(item).add(items.get(j));
+                assertTrue(subject.isDerivative(comboItem));
+            }
         }
     }
 
-    private void populateSieveForAllDigitCombos(int level) {
-        for (int r = DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
-            SudokuMask pMask = configFixture.maskForDigits(DIGIT_COMBOS_MAP[level][r]);
-            sieve.addFromFilter(pMask);
+    @Test
+    void validate() {
+        List<SudokuSieve> allFixtures = new ArrayList<>();
+        allFixtures.addAll(fixtures2);
+        allFixtures.addAll(fixtures3);
+
+        for (SudokuSieve subject : allFixtures) {
+            // Do NOT modify list or items directly because they are shared among the tests below.
+            List<SudokuMask> items = subject.items(new ArrayList<>());
+
+            // Empty mask = invalid
+            assertFalse(subject.validate(new SudokuMask()));
+            // Full mask = invalid
+            assertFalse(subject.validate(SudokuMask.full()));
+
+            for (int i = 0; i < items.size(); i++) {
+                // Do NOT modify this item.
+                SudokuMask item = items.get(i);
+
+                // Existing items = valid
+                assertTrue(subject.validate(item));
+
+                // Existing items + bits (i.e. derivative items) = invalid
+                for (int bit : new SudokuMask(item).flip().toIndices()) {
+                    assertFalse(subject.validate(new SudokuMask(item).setBit(bit)));
+                }
+
+                // Existing items - bits = invalid
+                for (int bit : item.toIndices()) {
+                    assertFalse(
+                        subject.validate(new SudokuMask(item).unsetBit(bit)),
+                        String.format(
+                            "%s\n%s",
+                            subject.config().toString(),
+                            new SudokuMask(item).unsetBit(bit).toBigInt().toString()
+                        )
+                    );
+                }
+            }
+        }
+
+        // This combinatorial check was separated to conserve test runtime.
+        SudokuSieve subject = fixtures2.getFirst();
+        List<SudokuMask> items = subject.items(new ArrayList<>());
+        for (int i = 0; i < items.size(); i++) {
+            // Do NOT modify this item.
+            SudokuMask item = items.get(i);
+            // Combinations of items = invalid
+            for (int j = i + 1; j < items.size(); j++) {
+                SudokuMask comboItem = new SudokuMask(item).add(items.get(j));
+                assertFalse(subject.validate(comboItem));
+            }
         }
     }
 }

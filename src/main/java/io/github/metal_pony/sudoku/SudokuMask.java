@@ -334,7 +334,7 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
         if (other == null) return false;
         if (bitsSet == 0 || other.bitsSet == 0) return false;
         for (int i = 0; i < NUM_BYTES; i++) {
-            if ((bytes[i] & other.bytes[i]) > 0) return true;
+            if ((bytes[i] & other.bytes[i]) != 0) return true;
         }
         return false;
     }

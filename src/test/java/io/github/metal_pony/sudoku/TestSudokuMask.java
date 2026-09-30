@@ -1,7 +1,9 @@
 package io.github.metal_pony.sudoku;
 
+import static io.github.metal_pony.sudoku.Constants.SPACES;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
@@ -147,9 +149,15 @@ public class TestSudokuMask {
     }
 
     @Test
-    void default_constructor() {
+    void defaultConstructor_createsEmptyMask() {
         assertEquals(0, mask.bitCount());
         assertEquals("0".repeat(81), mask.toString());
+        assertEquals(BigInteger.ZERO, mask.toBigInt());
+        assertArrayEquals(new byte[11], mask.toByteArray());
+        assertArrayEquals(new int[0], mask.toIndices());
+        for (int i = 0; i < SPACES; i++) {
+            assertFalse(mask.testBit(i));
+        }
     }
 
     @Test
@@ -269,9 +277,10 @@ public class TestSudokuMask {
 
     @Test
     void add() {
-        String originalMask = "000011010000001010011100010111100001011101100100110100101110110110010001010101000";
-        String otherMask    = "000000000000000010100000000000000000000000000001000000000000000000000000000000010";
-        String expectedMask = "000011010000001010111100010111100001011101100101110100101110110110010001010101010";
+        String originalMask = "000011010000001010011100010111100001011101100100110100101110110110010001010101010";
+        String otherMask    = "110000000000000010100000000000000000000000000001000000000000000000000000000000001";
+        String expectedMask = "110011010000001010111100010111100001011101100101110100101110110110010001010101011";
+        int expectedBitCount = expectedMask.replaceAll("0", "").length();
 
         mask = new SudokuMask(originalMask);
         int originalMaskBitCount = mask.bitCount();
@@ -301,7 +310,7 @@ public class TestSudokuMask {
         mask = new SudokuMask(originalMask);
         result = mask.add(other);
         assertTrue(mask == result);
-        assertEquals(originalMaskBitCount + 3, mask.bitCount());
+        assertEquals(expectedBitCount, mask.bitCount());
         assertEquals(expectedMask, result.toString());
     }
 
@@ -437,6 +446,10 @@ public class TestSudokuMask {
                 assertTrue(b.intersects(a));
             }
         }
+
+        SudokuMask a = new SudokuMask().setBit(1);
+        SudokuMask b = new SudokuMask().setBit(1).setBit(2);
+        assertTrue(a.intersects(b));
     }
 
     @Test

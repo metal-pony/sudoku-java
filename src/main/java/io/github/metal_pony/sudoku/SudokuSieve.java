@@ -76,15 +76,6 @@ public class SudokuSieve {
     }
 
     /**
-     * Creates a new Sieve for the given sudoku board array.
-     * @param configBoard Full and valid sudoku board.
-     * @throws IllegalArgumentException If the given sudoku board is not full and valid.
-     */
-    public SudokuSieve(int[] configBoard) {
-        this(new Sudoku(configBoard));
-    }
-
-    /**
      * Gets the number of items in this Sieve.
      * @return Number of items in the sieve.
      */
@@ -403,6 +394,7 @@ public class SudokuSieve {
         int emptyCells = p.numEmptyCells();
         p.reduce();
         return (
+            emptyCells > 0 &&
             p.numEmptyCells() == emptyCells &&
             p.doBranchesSolveUniquely()
         );

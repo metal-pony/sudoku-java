@@ -411,7 +411,7 @@ public class TestSudoku {
     @BeforeEach
     void before() {
         configFixture = new Sudoku(configFixtureStr);
-        configFixtureSieve = new SudokuSieve(configFixture.toArray());
+        configFixtureSieve = new SudokuSieve(configFixture);
         puzzleFixture = new Sudoku(puzzleFixtureStr);
         puzzleSolutions = copyPuzzleFixtureSolutions();
         Arrays.sort(puzzleSolutions);
