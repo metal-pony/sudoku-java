@@ -14,6 +14,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.gson.FormattingStyle;
@@ -105,14 +106,43 @@ public class Main {
     }
   }
 
-  static void runBatchAndBlock(List<Runnable> batch, int threads) {
+  /**
+   * Creates a thread pool with the maximum number of system threads,
+   * submits workItems to it, then blocks for up to 1 day until complete.
+   * @param workItems Collection of Runnables to execute.
+   * @return True if all items were executed with errors; otherwise false
+   * (exception, timeout, or thread interuption).
+   */
+  public static boolean runWithThreads(List<Runnable> workItems) {
+    return runWithThreads(workItems, Runtime.getRuntime().availableProcessors());
+  }
+
+  /**
+   * Creates a thread pool with the given number of threads, submits
+   * workItems to it, then blocks for up to 1 day until complete.
+   * @param workItems Collection of Runnables to execute.
+   * @param threads Number of threads to use.
+   * @return True if all items were executed with errors; otherwise false
+   * (exception, timeout, or thread interuption).
+   */
+  public static boolean runWithThreads(List<Runnable> workItems, int threads) {
     ThreadPoolExecutor pool = new ThreadPoolExecutor(
       threads, threads,
       1L, TimeUnit.SECONDS,
       new LinkedBlockingQueue<>()
     );
+    AtomicInteger remainingCount = new AtomicInteger(workItems.size());
     pool.prestartAllCoreThreads();
-    for (Runnable work : batch) pool.submit(work);
+    workItems.forEach(item -> {
+      pool.submit(() -> {
+        try {
+          item.run();
+        } catch (Exception ex) {
+          ex.printStackTrace();
+        }
+        remainingCount.decrementAndGet();
+      });
+    });
     pool.shutdown();
     try {
       pool.awaitTermination(1L, TimeUnit.DAYS);
@@ -122,6 +152,7 @@ public class Main {
       pool.close();
       // out("thread pool closed");
     }
+    return remainingCount.get() == 0;
   }
 
   private static int inBounds(int value, int min, int max) {

@@ -1301,7 +1301,11 @@ public class Sudoku {
         SudokuMask mask = new SudokuMask();
         SudokuSieve sieve = new SudokuSieve(solution);
         if (numClues < 31) {
-            sieve.seedThreaded(sieve.fullPrintCombos(2));
+            List<Runnable> seedWork = new ArrayList<>();
+            sieve.fullPrintCombos(2).forEach(m -> {
+                seedWork.add(() -> sieve.searchForUAs(m));
+            });
+            Main.runWithThreads(seedWork);
         } else if (numClues < 25) {
             // sieve.seedThreaded(sieve.fullPrintCombos(3));
         }
@@ -1409,6 +1413,7 @@ public class Sudoku {
         if (sieve == null)
             sieve = new SudokuSieve(grid);
 
+        final SudokuSieve _sieve = sieve;
         ThreadLocalRandom rand = ThreadLocalRandom.current();
         long start = System.currentTimeMillis();
         // const FULLMASK = (1n << BigInt(SPACES)) - 1n;
@@ -1430,7 +1435,7 @@ public class Sudoku {
                 // mask &= ~cellMask(choice);
                 mask.unsetBit(choice);
 
-                boolean satisfies = sieve.doesMaskSatisfy(mask);
+                boolean satisfies = _sieve.doesMaskSatisfy(mask);
 
                 // If not, or if there are multiple solutions,
                 // put the cell back and try the next
@@ -1452,12 +1457,20 @@ public class Sudoku {
 
                 if (grid.filter(mask).solutionsFlag() != 1) {
                     puzzleCheckFails++;
-                    if (puzzleCheckFails == 100 && sieve.size() < 100) {
-                        sieve.seedThreaded(sieve.fullPrintCombos(2));
-                    } else if (puzzleCheckFails == 2000 && sieve.size() < 1000) {
-                        sieve.seedThreaded(sieve.fullPrintCombos(3));
-                    } else if (puzzleCheckFails > 10_000 && sieve.size() < 10_000) {
-                        sieve.addFromPuzzleMask(mask);
+                    if (puzzleCheckFails == 100 && _sieve.size() < 100) {
+                        List<Runnable> seedWork = new ArrayList<>();
+                        _sieve.fullPrintCombos(2).forEach(m -> {
+                            seedWork.add(() -> _sieve.searchForUAs(m));
+                        });
+                        Main.runWithThreads(seedWork);
+                    } else if (puzzleCheckFails == 2000 && _sieve.size() < 1000) {
+                        List<Runnable> seedWork = new ArrayList<>();
+                        _sieve.fullPrintCombos(3).forEach(m -> {
+                            seedWork.add(() -> _sieve.searchForUAs(m));
+                        });
+                        Main.runWithThreads(seedWork);
+                    } else if (puzzleCheckFails > 10_000 && _sieve.size() < 10_000) {
+                        _sieve.searchForUAs(new SudokuMask(mask).flip());
                     }
 
                     mask.setBit(choice);
@@ -2089,7 +2102,11 @@ public class Sudoku {
      */
     private String dc(int level) {
         SudokuSieve sieve = new SudokuSieve(this);
-        sieve.seed(sieve.digitCombos(level));
+        List<Runnable> seedWork = new ArrayList<>();
+        sieve.digitCombos(level).forEach(mask -> {
+            seedWork.add(() -> sieve.searchForUAs(mask));
+        });
+        Main.runWithThreads(seedWork, Runtime.getRuntime().availableProcessors());
         return fpFromSieve(level, sieve);
     }
 
@@ -2168,11 +2185,11 @@ public class Sudoku {
      */
     public String dc(int level, int numThreads) {
         SudokuSieve sieve = new SudokuSieve(this);
-        if (numThreads == 1) {
-            sieve.seed(sieve.digitCombos(level));
-        } else {
-            sieve.seedThreaded(sieve.digitCombos(level), numThreads);
-        }
+        List<Runnable> seedWork = new ArrayList<>();
+        sieve.digitCombos(level).forEach(mask -> {
+            seedWork.add(() -> sieve.searchForUAs(mask));
+        });
+        Main.runWithThreads(seedWork, numThreads);
         return fpFromSieve(level, sieve);
     }
 
@@ -2190,11 +2207,11 @@ public class Sudoku {
      */
     public String fp(int level, int numThreads) {
         SudokuSieve sieve = new SudokuSieve(this);
-        if (numThreads == 1) {
-            sieve.seed(sieve.fullPrintCombos(level));
-        } else {
-            sieve.seedThreaded(sieve.fullPrintCombos(level), numThreads);
-        }
+        List<Runnable> seedWork = new ArrayList<>();
+        sieve.fullPrintCombos(level).forEach(mask -> {
+            seedWork.add(() -> sieve.searchForUAs(mask));
+        });
+        Main.runWithThreads(seedWork, numThreads);
         return fpFromSieve(level, sieve);
     }
 

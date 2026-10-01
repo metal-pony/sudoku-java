@@ -32,6 +32,13 @@ public class SudokuSieveJsonAdapter extends TypeAdapter<SudokuSieve> {
     /** Error message displayed when encountering unexpected json.*/
     static final String ITEM_NOT_ADDED = "Sieve item was not added: %s";
 
+    /**
+     * Creates a new SudokuSieveJsonAdapter.
+     */
+    public SudokuSieveJsonAdapter() {
+        super();
+    }
+
     @Override
     public void write(JsonWriter writer, SudokuSieve sieve) throws IOException {
         writer.beginObject();
