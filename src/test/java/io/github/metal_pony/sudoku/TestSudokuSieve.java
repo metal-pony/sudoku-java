@@ -81,7 +81,7 @@ public class TestSudokuSieve {
 
             SudokuSieve subject = new SudokuSieve(config);
             assertEquals(0, subject.size());
-            subject.seed(subject.digitCombos(2));
+            subject.seed();
             List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
 
             assertEquals(fixture.size(), subject.size());
@@ -106,7 +106,7 @@ public class TestSudokuSieve {
 
             SudokuSieve subject = new SudokuSieve(config);
             assertEquals(0, subject.size());
-            subject.seed(subject.digitCombos(3));
+            subject.seed(3);
             List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
 
             assertEquals(fixture.size(), subject.size());
@@ -123,24 +123,6 @@ public class TestSudokuSieve {
     }
 
     @Test
-    void seed_whenMasksIsNull_throws() {
-        SudokuSieve subject = new SudokuSieve(Sudoku.generateConfig());
-        assertThrows(NullPointerException.class, () -> {
-            subject.seedThreaded(null);
-        });
-    }
-
-    @Test
-    void seedThreaded_whenNumThreadsIsNotPositive_throws() {
-        SudokuSieve subject = new SudokuSieve(Sudoku.generateConfig());
-        List.of(0, -1, -2, -4, -10, -100).forEach(numThreads -> {
-            assertThrows(IllegalArgumentException.class, () -> {
-                subject.seedThreaded(new ArrayList<>(), numThreads);
-            });
-        });
-    }
-
-    @Test
     void seedThreaded_resultsMatchFixture2() {
         for (int i = 0; i < fixtures2.size(); i++) {
             SudokuSieve fixture = fixtures2.get(i);
@@ -150,9 +132,14 @@ public class TestSudokuSieve {
             List.of(1, 2, 8, 16, 64).forEach(numThreads -> {
                 SudokuSieve subject = new SudokuSieve(config);
                 assertEquals(0, subject.size());
-                subject.seedThreaded(subject.digitCombos(2), 1);
-                List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
 
+                List<Runnable> seedWork = new ArrayList<>();
+                subject.digitCombos(2).forEach(mask -> {
+                    seedWork.add(() -> subject.searchForUAs(mask));
+                });
+                Main.runWithThreads(seedWork, numThreads);
+
+                List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
                 assertEquals(fixture.size(), subject.size());
                 for (int j = 0; j < fixtureItems.size(); j++) {
                     SudokuMask fItem = fixtureItems.get(j);
@@ -177,9 +164,14 @@ public class TestSudokuSieve {
             List.of(1, 2, 8, 16, 64).forEach(numThreads -> {
                 SudokuSieve subject = new SudokuSieve(config);
                 assertEquals(0, subject.size());
-                subject.seedThreaded(subject.digitCombos(3), 1);
-                List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
 
+                List<Runnable> seedWork = new ArrayList<>();
+                subject.digitCombos(3).forEach(mask -> {
+                    seedWork.add(() -> subject.searchForUAs(mask));
+                });
+                Main.runWithThreads(seedWork, numThreads);
+
+                List<SudokuMask> subjectItems = subject.items(new ArrayList<>());
                 assertEquals(fixture.size(), subject.size());
                 for (int j = 0; j < fixtureItems.size(); j++) {
                     SudokuMask fItem = fixtureItems.get(j);

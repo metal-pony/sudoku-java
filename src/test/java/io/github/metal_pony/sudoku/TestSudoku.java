@@ -24,7 +24,6 @@ import io.github.metal_pony.sudoku.util.ArraysUtil;
 import io.github.metal_pony.sudoku.util.Counting;
 
 public class TestSudoku {
-
     final Class<NullPointerException> nullErr = NullPointerException.class;
     final Class<IllegalArgumentException> argErr = IllegalArgumentException.class;
 
@@ -419,7 +418,7 @@ public class TestSudoku {
 
     @Test
     void testThing() {
-        populateSieveForAllDigitCombos(2);
+        configFixtureSieve.seed();
 
         SudokuMask[] expectedItems = new SudokuMask[] {
             new SudokuMask("001000001000000000001000001000000000000000000000000000000000000000000000000000000"),
@@ -1085,7 +1084,7 @@ public class TestSudoku {
 
     // @Test
     void sieveFindsAllExpectedMasks() {
-        populateSieveForAllDigitCombos(3);
+        configFixtureSieve.seed(3);
 
         SudokuMask[] expectedItems = new SudokuMask[] {
             new SudokuMask("000000000000000000000000000100001000000000000100001000000000000000000000000000000"),
@@ -1288,13 +1287,6 @@ public class TestSudoku {
             sBoard = s.toArray();
             rehydratedS = new Sudoku(s.toByteArray());
             assertArrayEquals(sBoard, rehydratedS.toArray());
-        }
-    }
-
-    private void populateSieveForAllDigitCombos(int level) {
-        for (int r = DIGIT_COMBOS_MAP[level].length - 1; r >= 0; r--) {
-            SudokuMask pMask = configFixture.maskForDigits(DIGIT_COMBOS_MAP[level][r]);
-            configFixtureSieve.addFromFilter(pMask);
         }
     }
 

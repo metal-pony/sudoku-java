@@ -6,22 +6,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import static io.github.metal_pony.sudoku.Constants.*;
 
 /**
- * Data structure associated with a given sudoku solution.
- * Maintains a collection of unavoidable sets of the solution, the 'Items',
- * as SudokuMasks.
- * Provides methods to filter through the items, check if a mask satisfies
- * all sieve items, and search for / seed more items.
+ * Maintains a collection of unavoidable sets for a given sudoku solution.
  *
- * The Sieve can be used to aid puzzle searching by providing a fail-fast
+ * Can be useful in puzzle searching by providing a fail-fast
  * check against a given puzzle mask.
  */
 public class SudokuSieve {
@@ -243,15 +235,19 @@ public class SudokuSieve {
     }
 
     /**
-     * Seeds this Sieve using the given collection of SudokuMasks.
-     * Each mask will be applied to the Sieve's solution, creating a puzzle.
-     * Each puzzle will then be solved, and unique solutions collected.
-     * Solutions different from this Sieve's will be used to derive new Items.
-     * @param masks Collection of SudokuMask that will serve as filters applied
-     * to the solution.
+     * Generates a number of unavoidable sets using the digit-combos(2) technique.
      */
-    public void seed(Collection<SudokuMask> masks) {
-        masks.forEach(mask -> addFromFilter(mask));
+    public void seed() {
+        seed(2);
+    }
+
+    /**
+     * Generates a number of unavoidable sets using the digit-combos(level) technique.
+     * @param level (2 to 4 recommended) Number of digits associated with the digitCombos
+     * mask generation.
+     */
+    public void seed(int level) {
+        digitCombos(level).forEach(this::searchForUAs);
     }
 
     /**
@@ -337,51 +333,6 @@ public class SudokuSieve {
     }
 
     /**
-     * Seeds this Sieve using the given collection of SudokuMasks.
-     * Each mask will be applied to the Sieve's solution, creating a puzzle.
-     * Each puzzle will then be solved, and unique solutions collected.
-     * Solutions different from this Sieve's will be used to derive new Items.
-     *
-     * If numThreads is less than 1, an IllegalArgumentException will be thrown by ThreadPoolExecutor.
-     * @param masks Collection of SudokuMask that will serve as filters applied
-     * to the solution.
-     * @param numThreads Number of threads to split the work.
-     */
-    public void seedThreaded(Collection<SudokuMask> masks, int numThreads) {
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(
-            numThreads, numThreads,
-            1L, TimeUnit.MINUTES,
-            new LinkedBlockingQueue<>()
-        );
-
-        masks.forEach(mask -> pool.submit(() -> {
-            addFromFilter(mask);
-        }));
-
-        pool.shutdown();
-        try {
-            pool.awaitTermination(1L, TimeUnit.DAYS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Seeds this Sieve using the given collection of SudokuMasks.
-     * Each mask will be applied to the Sieve's solution, creating a puzzle.
-     * Each puzzle will then be solved, and unique solutions collected.
-     * Solutions different from this Sieve's will be used to derive new Items.
-     *
-     * Note: Uses the maximum number of threads.
-     *
-     * @param masks Collection of SudokuMask that will serve as filters applied
-     * to the solution.
-     */
-    public void seedThreaded(Collection<SudokuMask> masks) {
-        seedThreaded(masks, Runtime.getRuntime().availableProcessors());
-    }
-
-    /**
      * Checks whether the given SudokuMask is an unavoidable set.
      * Masks are Unavoidable Sets when the puzzle they create is (1) not reducible
      * by any Sudoku technique, and (2) each empty cell has at least 2 candidates
@@ -463,19 +414,17 @@ public class SudokuSieve {
     }
 
     /**
-     * Attempts to add the given item to this sieve.
-     * @param item Item to add.
-     * @return True if the item was added; otherwise false if the item has not bits set;
-     * if the item is derivative of an existing item;
-     * if the item is not an unavoidable set;
-     * if the item was previously added.
+     * Attempts to add the given unavoidable set to this sieve.
+     * A validation step checks it against current elements to block
+     * duplicates and supersets (called derivatives) and then verifies
+     * it as an unavoidable set.
+     *
+     * @param item Unavoidable set as a SudokuMask.
+     * @return True if the item was verified as a non-duplicate unavoidable set
+     * and added to the sieve; otherwise false.
      */
     public synchronized boolean add(SudokuMask item) {
-        if (
-            item.bitCount() > 0 &&
-            !isDerivative(item) &&
-            validate(item)
-        ) {
+        if (!isDerivative(item) && validate(item)) {
             rawAdd(item);
             return true;
         }
@@ -483,53 +432,27 @@ public class SudokuSieve {
     }
 
     /**
-     * Filters the sieve's grid with the given mask, and for each solution,
-     * adds the diff as an item if it validates as an unavoidable set.
+     * Searches the space of the given mask for unavoidable sets.
      *
-     * Note: The bits set in the given mask indicate which cells will be removed.
+     * Note: The shape of the search space is directly correlated to
+     * the performance of this method. The mask forms a puzzle by erasing
+     * digits from the sieve's config, which then undergoes a full solution
+     * search along with additional processing for each solution found. If the
+     * mask creates a puzzle with a great many solutions, it may take a long
+     * time to process.
      *
-     * @param mask Used to filter the sudoku grid associated with this sieve.
-     * @return Number of Items added to this Sieve.
+     * @param searchSpace Indicates puzzle space to search for unavoidable sets.
+     * @return Number of items that were added to this sieve.
      */
-    public int addFromFilter(SudokuMask mask) {
-        AtomicInteger numAdded = new AtomicInteger();
-        SudokuMask _mask = new SudokuMask(mask);
-        _config.filter(_mask.flip()).searchForSolutions(solution -> {
-            SudokuMask diff = _config.diffMask(solution);
-            if (
-                diff.bitCount() > 0 &&
-                !isDerivative(diff) &&
-                validate(diff)
-            ) {
-                rawAdd(diff);
-                numAdded.incrementAndGet();
+    public int searchForUAs(SudokuMask searchSpace) {
+        int addedCount = 0;
+        Sudoku puzzle = _config.filter(new SudokuMask(searchSpace).flip());
+        for (Sudoku solution : puzzle.solutions()) {
+            if (add(_config.diffMask(solution))) {
+                addedCount++;
             }
-            return true;
-        });
-        return numAdded.get();
-    }
-
-    /**
-     * Filters the sieve's grid with the given mask, and for each solution,
-     * adds the diff as an item if it validates as an unavoidable set.
-     * @param mask Used to filter the sudoku grid associated with this sieve.
-     * @return Number of Items added to this Sieve.
-     */
-    public int addFromPuzzleMask(SudokuMask mask) {
-        AtomicInteger numAdded = new AtomicInteger();
-        _config.filter(mask).searchForSolutions(solution -> {
-            SudokuMask diff = _config.diffMask(solution);
-            if (
-                diff.bitCount() > 0 &&
-                !isDerivative(diff) &&
-                validate(diff)
-            ) {
-                rawAdd(diff);
-                numAdded.incrementAndGet();
-            }
-            return true;
-        });
-        return numAdded.get();
+        }
+        return addedCount;
     }
 
     /**
@@ -594,14 +517,13 @@ public class SudokuSieve {
 
     /**
      * Checks whether the given mask intersects with all sieve items.
-     * @param puzzleMask SudokuMask to check against the Items.
+     * @param mask SudokuMask to check against the Items.
      * @return True if the mask contains at least one bit intersecting with each sieve item.
      */
-    public synchronized boolean doesMaskSatisfy(SudokuMask puzzleMask) {
+    public synchronized boolean doesMaskSatisfy(SudokuMask mask) {
         for (ItemGroup group : _itemGroupsByBitCount) {
             for (SudokuMask item : group.items) {
-                // TODO There's no way this is correct, right?
-                if (!item.intersects(puzzleMask)) {
+                if (!item.intersects(mask)) {
                     return false;
                 }
             }
@@ -625,36 +547,6 @@ public class SudokuSieve {
         }
 
         strb.append("}");
-        return strb.toString();
-    }
-
-    /**
-     * Creates a hash string of this Sieve, based on the combined bitCounts of
-     * its Items.
-     * @param isLvl2 Whether the sieve is seeded to level 2. This omits Items
-     * with odd bitCounts from the hash, as a Sieve at level 2 shouldn't contain them.
-     * @return Generated string hash.
-     */
-    public String hash(boolean isLvl2) {
-        StringBuilder strb = new StringBuilder();
-        strb.append(size());
-        strb.append("=");
-
-        // An item (unavoidable set) includes a minimum of 4 cells
-        for (int m = 4, count = 0, max = size(); count < max; m++) {
-            ItemGroup group = _itemGroupsByBitCount.get(m);
-            int n = group.items.size();
-            count += n;
-
-            // In level 2, there can be no UAs using an odd number of cells,
-            // because each cell must have at least one complement.
-            // Skipping odd numbers avoids "::", keeping the fingerprint short.
-            if (isLvl2 && (m & 1) == 1) continue;
-
-            if (n > 0) strb.append(Integer.toString(n, 16));
-            if (count < max) strb.append(':');
-        }
-
         return strb.toString();
     }
 }
