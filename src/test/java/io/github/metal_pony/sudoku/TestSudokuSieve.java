@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonReader;
 
 import io.github.metal_pony.sudoku.util.ArraysUtil;
 
@@ -26,28 +26,11 @@ public class TestSudokuSieve {
 
     // Reads the json test fixtures (array of SudokuSieve) from resources.
     private static List<SudokuSieve> readTestFixtures(String resourcePath) {
-        List<SudokuSieve> result = new ArrayList<>();
-        Gson gson = new Gson();
+        Gson gson = Main.buildGsonForSudoku();
         InputStream fixtureStream = TestSudokuSieve.class.getResourceAsStream(resourcePath);
-        JsonObject[] readData = gson.fromJson(
-            gson.newJsonReader(new InputStreamReader(fixtureStream)),
-            JsonObject[].class
-        );
-
-        for (JsonObject obj : readData) {
-            String config = gson.fromJson(obj.get("config"), String.class);
-            String[] items = gson.fromJson(obj.get("items"), String[].class);
-
-            SudokuSieve sieve = new SudokuSieve(new Sudoku(config));
-            if (items != null) {
-                for (String itemStr : items) {
-                    sieve.add(new SudokuMask(new BigInteger(itemStr)));
-                }
-            }
-            result.add(sieve);
-        }
-
-        return result;
+        JsonReader reader = gson.newJsonReader(new InputStreamReader(fixtureStream));
+        SudokuSieve[] sieves = gson.fromJson(reader, SudokuSieve[].class);
+        return Arrays.asList(sieves);
     }
 
     /** List of valid SudokuSieves, seeded with digitCombos(2).*/

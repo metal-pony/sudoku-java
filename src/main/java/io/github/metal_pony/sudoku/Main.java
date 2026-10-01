@@ -16,7 +16,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.gson.FormattingStyle;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.Strictness;
+
 import static io.github.metal_pony.sudoku.Constants.*;
+
 import io.github.metal_pony.sudoku.util.Counting;
 
 /**
@@ -28,9 +34,22 @@ public class Main {
   private Main() {}
 
   /**
+   * Builds a Gson instance with TypeAdapters for handling Sudoku,
+   * SudokuMask, SudokuSieve, SieveSearcher de/serialization.
+   * @return A new Gson instance.
+   */
+  public static Gson buildGsonForSudoku() {
+    GsonBuilder gsonBuilder = new GsonBuilder();
+    gsonBuilder.registerTypeAdapter(SudokuSieve.class, new SudokuSieveJsonAdapter());
+    gsonBuilder.setStrictness(Strictness.STRICT);
+    gsonBuilder.setFormattingStyle(FormattingStyle.PRETTY);
+    return gsonBuilder.create();
+  }
+
+  /**
    * Gets a List of all known 17-clue sudoku puzzles from a resource text file.
    * @return A new List containing the parsed 17-clue sudoku puzzles.
-   * @throws IOException
+   * @throws IOException If the resource cannot be opened.
    */
   public static List<Sudoku> sudoku17() throws IOException {
     return readAllLines(
