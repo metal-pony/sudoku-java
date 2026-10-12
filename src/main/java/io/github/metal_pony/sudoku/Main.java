@@ -61,8 +61,8 @@ public class Main {
   static final int MAX_THREADS = Runtime.getRuntime().availableProcessors();
   static final String RESOURCES_DIR = "resources";
 
-  static void out(Object x) { System.out.println(x); }
-  static void outf(String format, Object...args) { System.out.printf(format, args); }
+  static void println(Object x) { System.out.println(x); }
+  static void printf(String format, Object...args) { System.out.printf(format, args); }
 
   static long timeMs() { return System.currentTimeMillis(); }
 
@@ -248,7 +248,7 @@ public class Main {
       paliMask.palindrome(clues, r);
     } while (!SudokuMask.satisfiesPrimeSieve(paliMask));
     long paliGenTimeEnd = System.currentTimeMillis();
-    outf(
+    printf(
       """
       Generated random palindrome mask.
       palindrome(clues = %d, r = %d)
@@ -256,19 +256,19 @@ public class Main {
       """,
       clues, r, (paliGenTimeEnd - paliGenTimeStart)
     );
-    out(paliMask.toStringDots());
-    out(paliMask.toMedString());
+    println(paliMask.toStringDots());
+    println(paliMask.toMedString());
 
-    out("Searching for valid puzzles...");
+    println("Searching for valid puzzles...");
     long startTime = System.currentTimeMillis();
     AtomicLong count = new AtomicLong();
     // Sudoku.searchForPuzzlesAsync(paliMask, (puzzle) -> {
     Sudoku.searchForPuzzles(paliMask, (puzzle) -> {
-      outf("[%d] %s\n", count.incrementAndGet(), puzzle.toString());
+      printf("[%d] %s\n", count.incrementAndGet(), puzzle.toString());
       return true;
     });
     long endTime = System.currentTimeMillis();
-    outf(
+    printf(
       "Found %d puzzles of palindrome(clues = %d, r = %d). (%d ms)\n",
       count.get(), clues, r, (endTime - startTime)
     );

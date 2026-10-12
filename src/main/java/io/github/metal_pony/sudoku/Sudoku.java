@@ -2361,7 +2361,6 @@ public class Sudoku {
         randomizeDigits();
 
         List<Runnable> transforms = new ArrayList<>(){{
-            add(() -> rotate(1));
             add(() -> swapBands(0, 1));
             add(() -> swapBands(0, 2));
             add(() -> swapBands(1, 2));
@@ -2374,7 +2373,6 @@ public class Sudoku {
             add(() -> swapBandRows(2, 0, 1));
             add(() -> swapBandRows(2, 0, 2));
             add(() -> swapBandRows(2, 1, 2));
-            add(() -> rotate(2));
             add(() -> swapStacks(0, 1));
             add(() -> swapStacks(0, 2));
             add(() -> swapStacks(1, 2));
@@ -2387,13 +2385,6 @@ public class Sudoku {
             add(() -> swapStackCols(2, 0, 1));
             add(() -> swapStackCols(2, 0, 2));
             add(() -> swapStackCols(2, 1, 2));
-            add(() -> rotate(3));
-
-            // These can be achieved through combinations of the above transforms.
-            // add(() -> reflectHorizontal());
-            // add(() -> reflectVertical());
-            // add(() -> reflectDiagonal());
-            // add(() -> reflectAntiDiagonal());
         }};
 
         final int nTransforms = transforms.size();
