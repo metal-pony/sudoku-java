@@ -248,7 +248,7 @@ public class Main {
       paliMask.palindrome(clues, r);
     } while (!SudokuMask.satisfiesPrimeSieve(paliMask));
     long paliGenTimeEnd = System.currentTimeMillis();
-    System.out.printf(
+    outf(
       """
       Generated random palindrome mask.
       palindrome(clues = %d, r = %d)
@@ -256,27 +256,27 @@ public class Main {
       """,
       clues, r, (paliGenTimeEnd - paliGenTimeStart)
     );
-    System.out.println(paliMask.toStringDots());
-    System.out.println(paliMask.toMedString());
+    out(paliMask.toStringDots());
+    out(paliMask.toMedString());
 
-    System.out.println("Searching for valid puzzles...");
+    out("Searching for valid puzzles...");
     long startTime = System.currentTimeMillis();
     AtomicLong count = new AtomicLong();
     // Sudoku.searchForPuzzlesAsync(paliMask, (puzzle) -> {
     Sudoku.searchForPuzzles(paliMask, (puzzle) -> {
-      System.out.printf("[%d] %s\n", count.incrementAndGet(), puzzle.toString());
+      outf("[%d] %s\n", count.incrementAndGet(), puzzle.toString());
       return true;
     });
     long endTime = System.currentTimeMillis();
-    System.out.printf(
+    outf(
       "Found %d puzzles of palindrome(clues = %d, r = %d). (%d ms)\n",
       count.get(), clues, r, (endTime - startTime)
     );
 
-    // System.out.println(paliMask.toMedString());
+    // out(paliMask.toMedString());
 
     // Sudoku.searchForPuzzles(paliMask, (puzzle) -> {
-    //   System.out.println(puzzle.toString());
+    //   out(puzzle.toString());
     //   return true;
     // });
   }
