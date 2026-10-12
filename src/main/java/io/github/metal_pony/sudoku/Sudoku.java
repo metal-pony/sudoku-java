@@ -662,14 +662,12 @@ public class Sudoku {
         Sudoku p = new Sudoku();
 
         int[] areaBitCounts = mask.areaBitCounts();
-        // System.out.println(Arrays.toString(areaBitCounts));
         int maxIndex = 0;
         for (int i = 1; i < areaBitCounts.length; i++) {
             if (areaBitCounts[i] > areaBitCounts[maxIndex]) {
                 maxIndex = i;
             }
         }
-        // System.out.printf("maxIndex: %d\n", maxIndex);
 
         int[] areaIndices;
         if (maxIndex < 9) { // max bits are in a row
@@ -692,45 +690,19 @@ public class Sudoku {
             }
         }
 
-        // System.out.println(p.toMedString());
-        String[] flags = new String[]{"  ","⭐️","🧩"};
-
         Stack<PuzzleSearchNode> stack = new Stack<>();
         stack.push(new PuzzleSearchNode(p, mask));
 
-        long iterations = 0L;
         while (!stack.isEmpty()) {
-            if ((iterations % 1_000L) == 0L) {
-                String[] stackStr = new String[stack.size()];
-                for (int i = 0; i < stack.size(); i++) {
-                    stackStr[i] = stack.get(i).toString();
-                }
-                System.out.printf(
-                    "\n%s %d iters; stack: {%s}\n",
-                    LocalDateTime.now().toString(),
-                    iterations,
-                    String.join(" ", stackStr)
-                );
-            }
-            iterations++;
-
             PuzzleSearchNode top = stack.peek();
             p = top.sudoku;
-            // System.out.printf("[%d]\n%s\n", p.numClues(), p.toMedString());
-            // System.out.printf("[%d] %s\n", p.numClues(), p.toString());
             if (p.numClues() == mask.bitCount()) {
                 int flag = p.solutionsFlag();
-                // System.out.printf("%s   %s\n", flags[flag], p.toString());
                 if (flag == 1) {
-                    System.out.println();
                     if (!puzzleCallback.apply(new Sudoku(p))) break;
-                } else {
-                    System.out.print('#');
                 }
-                // iterations++;
                 stack.pop();
             } else {
-                System.out.print('.');
                 PuzzleSearchNode next = top.next();
                 if (next == null) {
                     stack.pop();
@@ -740,7 +712,6 @@ public class Sudoku {
             }
         }
     }
-
 
     /** Sudoku board array.*/
     int[] digits;
