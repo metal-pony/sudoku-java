@@ -688,11 +688,15 @@ public class Sudoku {
         } else { // max bits are in a region
             areaIndices = REGION_INDICES[maxIndex - 18];
         }
-        int digit = 1;
+
+        int[] digits = new int[9];
+        for (int d = 1; d <= 9; d++) digits[d - 1] = d;
+        ArraysUtil.shuffle(digits);
+        int index = 0;
         for (int i = 0; i < DIGITS; i++) {
             int ci = areaIndices[i];
             if (mask.testBit(ci)) {
-                p.setDigit(ci, digit++);
+                p.setDigit(ci, digits[index++]);
                 for (int ni : CELL_NEIGHBORS[ci]) {
                     // p.reduceCell(ni);
                     // p.candidates[ni] &= ~p.cellConstraints(ni);
