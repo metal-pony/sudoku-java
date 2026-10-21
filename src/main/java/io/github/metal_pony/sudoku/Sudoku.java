@@ -1282,20 +1282,31 @@ public class Sudoku {
      * @return A new Sudoku puzzle.
      */
     public static Sudoku generatePalindromePuzzle(int numClues) {
-        Sudoku puzzle = null;
-        Sudoku solution = Sudoku.generateConfig();
-        SudokuMask mask = new SudokuMask();
-        SudokuSieve sieve = new SudokuSieve(solution);
-        if (numClues < 31) {
-            List<Runnable> seedWork = new ArrayList<>();
-            sieve.fullPrintCombos(2).forEach(m -> {
-                seedWork.add(() -> sieve.searchForUAs(m));
-            });
-            Main.runWithThreads(seedWork);
-        } else if (numClues < 25) {
-            // sieve.seedThreaded(sieve.fullPrintCombos(3));
+        return generatePalindromePuzzle(numClues, null, null);
+    }
+
+    /**
+     * Generates a random palindrome puzzle with the specified number of clues.
+     * @param numClues Number of clues to be on the puzzle.
+     * @param solution Puzzle solution. Randomly generated if null.
+     * @param sieve Solution's sieve. Generated and seeded with dc2 if null.
+     * @return A new Sudoku puzzle.
+     */
+    public static Sudoku generatePalindromePuzzle(int numClues, Sudoku solution, SudokuSieve sieve) {
+        // TODO Should this throw an exception or return null?
+        if (numClues < MIN_CLUES) {
+            return null;
         }
-        // boolean sieveSatisfied = false;
+
+        solution = (solution == null) ? Sudoku.generateConfig() : solution;
+        sieve = (sieve == null) ? new SudokuSieve(solution) : sieve;
+        int initSieveSize = sieve.size();
+
+        Sudoku puzzle = null;
+        SudokuMask mask = new SudokuMask();
+        if (numClues < 27) {
+            sieve.seed(2);
+        }
         int sieveTests = 0;
         int puzzleTests = 0;
         int flag = 2;
@@ -1312,14 +1323,15 @@ public class Sudoku {
             } while (!sieve.doesMaskSatisfy(mask));
 
             puzzle = solution.filter(mask);
-            // flag = puzzle.solutionsFlag();
-            AtomicInteger solutionCount = new AtomicInteger();
-            puzzle.searchForSolutions(s -> {
-                sieve.add(solution.diffMask(s));
-                return solutionCount.incrementAndGet() < 4;
-            });
 
-            flag = solutionCount.get() == 1 ? 1 : 2;
+            int count = 0;
+            for (Sudoku s : puzzle.solutions()) {
+                count++;
+                sieve.add(solution.diffMask(s));
+                if (count > 2) break;
+            }
+
+            flag = (count == 1) ? 1 : 2;
             puzzleTests++;
         }
 
