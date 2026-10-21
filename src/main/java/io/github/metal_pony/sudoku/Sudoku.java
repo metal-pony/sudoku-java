@@ -500,18 +500,29 @@ public class Sudoku {
 
     /**
      * Builds a multiline string representation of the given sudoku board,
-     * including region borders.
+     * including region borders. Uses blank spaces for empty cells.
      * @param digits Sudoku board digits.
      * @return Multiline string representation of the board.
      */
     public static String toMedString(int[] digits) {
+        return toMedString(digits, ' ');
+    }
+
+    /**
+     * Builds a multiline string representation of the given sudoku board,
+     * including region borders.
+     * @param digits Sudoku board digits.
+     * @param emptySpaceChar Character to use for empty spaces.
+     * @return Multiline string representation of the board.
+     */
+    public static String toMedString(int[] digits, char emptySpaceChar) {
         StringBuilder strb = new StringBuilder();
         String lineSep = System.lineSeparator();
         for (int i = 0; i < SPACES; i++) {
             if (digits[i] > 0) {
                 strb.append(digits[i]);
             } else {
-                strb.append('.');
+                strb.append(emptySpaceChar);
             }
 
             // Print pipe between region columns
@@ -677,11 +688,15 @@ public class Sudoku {
         } else { // max bits are in a region
             areaIndices = REGION_INDICES[maxIndex - 18];
         }
-        int digit = 1;
+
+        int[] digits = new int[9];
+        for (int d = 1; d <= 9; d++) digits[d - 1] = d;
+        ArraysUtil.shuffle(digits);
+        int index = 0;
         for (int i = 0; i < DIGITS; i++) {
             int ci = areaIndices[i];
             if (mask.testBit(ci)) {
-                p.setDigit(ci, digit++);
+                p.setDigit(ci, digits[index++]);
                 for (int ni : CELL_NEIGHBORS[ci]) {
                     // p.reduceCell(ni);
                     // p.candidates[ni] &= ~p.cellConstraints(ni);
@@ -1267,20 +1282,31 @@ public class Sudoku {
      * @return A new Sudoku puzzle.
      */
     public static Sudoku generatePalindromePuzzle(int numClues) {
-        Sudoku puzzle = null;
-        Sudoku solution = Sudoku.generateConfig();
-        SudokuMask mask = new SudokuMask();
-        SudokuSieve sieve = new SudokuSieve(solution);
-        if (numClues < 31) {
-            List<Runnable> seedWork = new ArrayList<>();
-            sieve.fullPrintCombos(2).forEach(m -> {
-                seedWork.add(() -> sieve.searchForUAs(m));
-            });
-            Main.runWithThreads(seedWork);
-        } else if (numClues < 25) {
-            // sieve.seedThreaded(sieve.fullPrintCombos(3));
+        return generatePalindromePuzzle(numClues, null, null);
+    }
+
+    /**
+     * Generates a random palindrome puzzle with the specified number of clues.
+     * @param numClues Number of clues to be on the puzzle.
+     * @param solution Puzzle solution. Randomly generated if null.
+     * @param sieve Solution's sieve. Generated and seeded with dc2 if null.
+     * @return A new Sudoku puzzle.
+     */
+    public static Sudoku generatePalindromePuzzle(int numClues, Sudoku solution, SudokuSieve sieve) {
+        // TODO Should this throw an exception or return null?
+        if (numClues < MIN_CLUES) {
+            return null;
         }
-        // boolean sieveSatisfied = false;
+
+        solution = (solution == null) ? Sudoku.generateConfig() : solution;
+        sieve = (sieve == null) ? new SudokuSieve(solution) : sieve;
+        int initSieveSize = sieve.size();
+
+        Sudoku puzzle = null;
+        SudokuMask mask = new SudokuMask();
+        if (numClues < 27) {
+            sieve.seed(2);
+        }
         int sieveTests = 0;
         int puzzleTests = 0;
         int flag = 2;
@@ -1297,24 +1323,26 @@ public class Sudoku {
             } while (!sieve.doesMaskSatisfy(mask));
 
             puzzle = solution.filter(mask);
-            // flag = puzzle.solutionsFlag();
-            AtomicInteger solutionCount = new AtomicInteger();
-            puzzle.searchForSolutions(s -> {
-                sieve.add(solution.diffMask(s));
-                return solutionCount.incrementAndGet() < 4;
-            });
 
-            flag = solutionCount.get() == 1 ? 1 : 2;
+            int count = 0;
+            for (Sudoku s : puzzle.solutions()) {
+                count++;
+                sieve.add(solution.diffMask(s));
+                if (count > 2) break;
+            }
+
+            flag = (count == 1) ? 1 : 2;
             puzzleTests++;
         }
 
-        System.out.printf(
-            "[sieveTests %8d] [puzzleTests %8d] [sieve size %5d] %s\n",
-            sieveTests,
-            puzzleTests,
-            sieve.size(),
-            puzzle.toString()
-        );
+        // System.out.printf(
+        //     "[sieveTests %8d] [puzzleTests %8d] [sieve size %5d (%d added)] %s\n",
+        //     sieveTests,
+        //     puzzleTests,
+        //     sieve.size(),
+        //     sieve.size() - initSieveSize,
+        //     puzzle.toString()
+        // );
 
         return puzzle;
     }
