@@ -4,8 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -164,20 +162,6 @@ public class Main {
     if (value == null) {
       map.put(key, defaultValue);
     }
-  }
-
-  static long timeCpuExecution(Runnable runnable, int n) {
-    ThreadMXBean bean = ManagementFactory.getThreadMXBean();
-    long start = bean.getCurrentThreadCpuTime();
-    for (int t = 0; t < n; t++) {
-      runnable.run();
-    }
-    long end = bean.getCurrentThreadCpuTime();
-    return TimeUnit.NANOSECONDS.toMillis(end - start);
-  }
-
-  static long timeCpuExecution(Runnable runnable) {
-    return timeCpuExecution(runnable, 1);
   }
 
   /**
