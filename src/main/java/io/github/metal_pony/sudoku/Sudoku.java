@@ -1323,13 +1323,14 @@ public class Sudoku {
             puzzleTests++;
         }
 
-        System.out.printf(
-            "[sieveTests %8d] [puzzleTests %8d] [sieve size %5d] %s\n",
-            sieveTests,
-            puzzleTests,
-            sieve.size(),
-            puzzle.toString()
-        );
+        // System.out.printf(
+        //     "[sieveTests %8d] [puzzleTests %8d] [sieve size %5d (%d added)] %s\n",
+        //     sieveTests,
+        //     puzzleTests,
+        //     sieve.size(),
+        //     sieve.size() - initSieveSize,
+        //     puzzle.toString()
+        // );
 
         return puzzle;
     }
