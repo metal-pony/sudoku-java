@@ -500,18 +500,29 @@ public class Sudoku {
 
     /**
      * Builds a multiline string representation of the given sudoku board,
-     * including region borders.
+     * including region borders. Uses blank spaces for empty cells.
      * @param digits Sudoku board digits.
      * @return Multiline string representation of the board.
      */
     public static String toMedString(int[] digits) {
+        return toMedString(digits, ' ');
+    }
+
+    /**
+     * Builds a multiline string representation of the given sudoku board,
+     * including region borders.
+     * @param digits Sudoku board digits.
+     * @param emptySpaceChar Character to use for empty spaces.
+     * @return Multiline string representation of the board.
+     */
+    public static String toMedString(int[] digits, char emptySpaceChar) {
         StringBuilder strb = new StringBuilder();
         String lineSep = System.lineSeparator();
         for (int i = 0; i < SPACES; i++) {
             if (digits[i] > 0) {
                 strb.append(digits[i]);
             } else {
-                strb.append('.');
+                strb.append(emptySpaceChar);
             }
 
             // Print pipe between region columns
