@@ -1270,6 +1270,77 @@ public class TestSudoku {
 
     }
 
+    private void assertShakeDoesNothing(Sudoku sudoku) {
+        int numClues = sudoku.numClues();
+        String str = sudoku.toString();
+        int[] digits = sudoku.toArray();
+        int[] candidates = sudoku.getCandidatesEncoded();
+        sudoku.shake();
+        assertEquals(numClues, sudoku.numClues());
+        assertEquals(str, sudoku.toString());
+        assertArrayEquals(digits, sudoku.toArray());
+        assertArrayEquals(candidates, sudoku.getCandidatesEncoded());
+    }
+
+    @Test
+    void shake() {
+        // If sudoku is invalid, shake does nothing
+        for (String invalidPuzzleString : invalidPuzzles) {
+            assertShakeDoesNothing(new Sudoku(invalidPuzzleString));
+        }
+
+        // If no solution, shake does nothing
+        for (int t = 0; t < 10; t++) {
+            Sudoku sudoku = Sudoku.generatePuzzle(27);
+            // Mess the puzzle up by duplicating digits somewhere.
+            // Try within the first row.
+            for (int ci = 0; ci < 9; ci++) {
+                int d = sudoku.getDigit(ci);
+                if (d > 0) {
+                    sudoku.setDigit((ci + 7) % 9, d);
+                    break;
+                }
+            }
+            // If there were no digits set in the first, try second row.
+            for (int ci = 9; ci < 18; ci++) {
+                int d = sudoku.getDigit(ci);
+                if (d > 0) {
+                    sudoku.setDigit((ci + 7) % 9, d);
+                    break;
+                }
+            }
+            // sudoku is now invalid.
+
+            assertShakeDoesNothing(sudoku);
+        }
+
+        // If multiple solutions, shake does nothing
+        // Empty grid
+        assertShakeDoesNothing(new Sudoku());
+        for (String multiSolutionPuzzle : PUZZLESTRS_TO_NUM_SOLUTIONS.keySet()) {
+            assertShakeDoesNothing(new Sudoku(multiSolutionPuzzle));
+        }
+
+        // Happy case
+        // Tests:
+        //      solutionsFlag == 1
+        //      afterNumClues <= beforeNumClues
+        // Get some pregenerated puzzle strings
+        List<String> puzzleStrs = GeneratedPuzzles.getRandomPuzzles(10);
+        // Add some solution strings
+        for (int t = 0; t < 10; t++) {
+            puzzleStrs.add(Sudoku.generateConfig().toString());
+        }
+        // Check all
+        for (String puzzleStr : puzzleStrs) {
+            Sudoku sudoku = new Sudoku(puzzleStr);
+            int beforeNumClues = sudoku.numClues();
+            assertTrue(sudoku == sudoku.shake());
+            assertTrue(sudoku.numClues() <= beforeNumClues);
+            assertEquals(1, sudoku.solutionsFlag());
+        }
+    }
+
     @Test
     void toAndFromBytes() {
         Sudoku s = new Sudoku();

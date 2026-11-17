@@ -2445,6 +2445,29 @@ public class Sudoku {
     // End transformations
 
     /**
+     * Attempts to remove digits from the grid, as long as the grid
+     * retains a unique solution. If the grid does not have a unique
+     * solution initially, then this has no effect.
+     *
+     * Each cell containing a digit will attempt to clear, in a random
+     * order. Shaking an identical grid will very likely result in
+     * different output.
+     */
+    public Sudoku shake() {
+        if (solutionsFlag() != 1) return this;
+        int[] indices = ArraysUtil.shuffle(ArraysUtil.range(SPACES));
+        for (int i = 0; i < SPACES; i++) {
+            int digit = this.digits[indices[i]];
+            if (digit == 0) continue;
+            this.setDigit(indices[i], 0);
+            if (solutionsFlag() != 1) {
+                this.setDigit(indices[i], digit);
+            }
+        }
+        return this;
+    }
+
+    /**
      * Filters this grid with the given mask.
      * @param mask A mask indicating which digits to keep in the result.
      * @return A new Sudoku with filtered board values.
