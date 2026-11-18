@@ -528,6 +528,25 @@ public class TestSudokuMask {
         }
     }
 
+    @Test
+    void randomPalindrome() {
+        // Exception when bitCount is out of bounds
+        int[] BAD_BITCOUNTS = new int[]{
+            -100, -3, -2, -1, 0, 1, 2, 3, 4, 5,
+            82, 83, 84, 90, 100, 101, 1000, 987654321
+        };
+        for (int bc : BAD_BITCOUNTS) {
+            assertThrows(RangeException.class, () -> {
+                mask.randomPalindrome(bc);
+            });
+        }
+
+        // Doesn't take too long
+        for (int bc = 6; bc <= SPACES; bc++) {
+            mask.randomPalindrome(bc);
+        }
+    }
+
     // integration test
     void usage() {
 

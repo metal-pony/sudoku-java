@@ -497,14 +497,17 @@ public class SudokuMask implements Comparable<SudokuMask>, Comparator<SudokuMask
 
     /**
      * Generates a random palindrome with the given number of bits set.
-     * @param bitCount Total number of bits to be set in the palindrome.
+     * The mask will satisfy the prime sieve.
+     * @param bitCount [6 .. 81] Total number of bits to be set in the palindrome.
      * @return A randomly generated palindrome mask.
      */
     public SudokuMask randomPalindrome(int bitCount) {
-        if (bitCount < 0 || bitCount > SPACES) throw new RangeException(bitCount);
+        if (bitCount < 6 || bitCount > SPACES) throw new RangeException(bitCount);
         int k = bitCount / 2;
         long nck = Counting.NChooseKLong(40, k);
-        palindrome(bitCount, ThreadLocalRandom.current().nextLong(nck));
+        do {
+            palindrome(bitCount, ThreadLocalRandom.current().nextLong(nck));
+        } while (!satisfiesPrimeSieve(this));
         return this;
     }
 
