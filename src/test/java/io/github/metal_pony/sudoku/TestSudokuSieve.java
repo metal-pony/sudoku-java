@@ -216,8 +216,7 @@ public class TestSudokuSieve {
         SudokuSieve fixture = fixtures2.get(rand.nextInt(fixtures2.size()));
 
         // Only modify subject; never fixture.
-        SudokuSieve subject = new SudokuSieve(fixture.config());
-        fixture.items(new ArrayList<>()).forEach(subject::add);
+        SudokuSieve subject = new SudokuSieve(fixture);
         assertEquals(fixture.items(), subject.items());
 
         for (int ci = 0; ci < SPACES; ci++) {
