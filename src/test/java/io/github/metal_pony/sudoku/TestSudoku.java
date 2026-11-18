@@ -1305,7 +1305,7 @@ public class TestSudoku {
             for (int ci = 9; ci < 18; ci++) {
                 int d = sudoku.getDigit(ci);
                 if (d > 0) {
-                    sudoku.setDigit((ci + 7) % 9, d);
+                    sudoku.setDigit(9 + ((ci + 7) % 9), d);
                     break;
                 }
             }
