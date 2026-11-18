@@ -68,6 +68,15 @@ public class SudokuSieve {
     }
 
     /**
+     * Creates a new SudokuSieve that as a copy of the one given.
+     * @param other SudokuSieve to copy.
+     */
+    public SudokuSieve(SudokuSieve other) {
+        this(other.config());
+        other.items().forEach(this::rawAdd);
+    }
+
+    /**
      * Gets the number of items in this Sieve.
      * @return Number of items in the sieve.
      */

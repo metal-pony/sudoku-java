@@ -187,6 +187,30 @@ public class TestSudokuSieve {
     }
 
     @Test
+    void copyConstructor() {
+        // When input is null, throws NullPointer
+        assertThrows(NullPointerException.class, () -> {
+            new SudokuSieve((SudokuSieve)null);
+        });
+
+        // Copy empty sieve
+        Sudoku srcConfig = Sudoku.generateConfig();
+        SudokuSieve source = new SudokuSieve(srcConfig);
+
+        SudokuSieve copy = new SudokuSieve(source);
+        assertEquals(0, copy.size());
+        assertNull(copy.first());
+        assertEquals(0, copy.items().size());
+
+        for (int i = 0; i < fixtures2.size(); i++) {
+            source = fixtures2.get(i);
+            copy = new SudokuSieve(source);
+            assertEquals(source.size(), copy.size());
+            assertEquals(source.items(new ArrayList<>()), copy.items(new ArrayList<>()));
+        }
+    }
+
+    @Test
     void testRemoveOverlapping_thenAddItemsBack() {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
         SudokuSieve fixture = fixtures2.get(rand.nextInt(fixtures2.size()));
