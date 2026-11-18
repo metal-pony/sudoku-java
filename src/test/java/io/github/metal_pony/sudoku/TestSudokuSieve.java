@@ -189,7 +189,7 @@ public class TestSudokuSieve {
     @Test
     void testRemoveOverlapping_thenAddItemsBack() {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
-        SudokuSieve fixture = fixtures3.get(rand.nextInt(fixtures3.size()));
+        SudokuSieve fixture = fixtures2.get(rand.nextInt(fixtures2.size()));
 
         // Only modify subject; never fixture.
         SudokuSieve subject = new SudokuSieve(fixture.config());

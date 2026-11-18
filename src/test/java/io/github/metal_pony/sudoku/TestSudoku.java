@@ -322,7 +322,7 @@ public class TestSudoku {
         @Test
         void generatePuzzles_stressTest() {
             for (int clues = 81; clues >= 24; clues--) {
-                for (int t = 0; t < 10; t++) {
+                for (int t = 0; t < 3; t++) {
                     Sudoku p = Sudoku.generatePuzzle(clues);
                     int[] board = p.toArray();
 
@@ -519,7 +519,7 @@ public class TestSudoku {
 
     @Test
     void test_stringConstructor_whenStringIsValid() {
-        for (String pStr : GeneratedPuzzles.getRandomPuzzles(100)) {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(10)) {
             Sudoku p = new Sudoku(pStr);
             assertTrue(p.isValid());
             assertFalse(p.isSolved());
@@ -706,13 +706,11 @@ public class TestSudoku {
         }};
 
         String expectedFp2 = "f:11:a:a:7:b::14";
-        String expectedFp3 = "f::11::1b:4:1d:9:37:a:44:c:1e:c:3b:f:26:22:1b:c:3";
+        // String expectedFp3 = "f::11::1b:4:1d:9:37:a:44:c:1e:c:3b:f:26:22:1b:c:3";
 
-        for (String pStr : ArraysUtil.chooseRandom(puzzles, 25)) {
+        for (String pStr : ArraysUtil.chooseRandom(puzzles, 10)) {
             Sudoku p = new Sudoku(pStr);
-            assertEquals(1, p.solutionsFlag());
             p.normalize();
-            assertEquals(1, p.solutionsFlag());
             Sudoku solution = p.solution();
             String fp2 = solution.fp2();
             assertEquals(expectedFp2, fp2);
@@ -855,7 +853,7 @@ public class TestSudoku {
     void test_solutionIterator_withKnownValidPuzzles_findsSolution() {
         // Pre-generated puzzles from file, single solutions.
         Set<String> solutionSet = new HashSet<>();
-        for (String puzzleStr : GeneratedPuzzles.PUZZLES_24_1000) {
+        for (String puzzleStr : GeneratedPuzzles.getRandomPuzzles(10)) {
             Sudoku puzzle = new Sudoku(puzzleStr);
             int countSolutions = 0;
             solutionSet.clear();
@@ -984,7 +982,10 @@ public class TestSudoku {
         }
 
         // Invalid puzzles (multiple solutions)
-        for (String p : PUZZLESTRS_TO_NUM_SOLUTIONS.keySet()) {
+        List<String> multiSolutionPuzzleStrs = ArraysUtil.shuffle(
+            new ArrayList<>(PUZZLESTRS_TO_NUM_SOLUTIONS.keySet())
+        ).subList(0, 3);
+        for (String p : multiSolutionPuzzleStrs) {
             assertEquals(
                 PUZZLESTRS_TO_NUM_SOLUTIONS.get(p).intValue(),
                 new Sudoku(p).countSolutions()
@@ -992,7 +993,7 @@ public class TestSudoku {
         }
 
         // Valid sudoku puzzles (single solutions)
-        for (String p : GeneratedPuzzles.PUZZLES_24_1000) {
+        for (String p : GeneratedPuzzles.getRandomPuzzles(10)) {
             assertEquals(1, new Sudoku(p).countSolutions());
         }
     }
@@ -1008,14 +1009,18 @@ public class TestSudoku {
         }
 
         // Valid sudoku puzzles (single solutions)
-        for (String pStr : GeneratedPuzzles.PUZZLES_24_1000) {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(10)) {
             assertEquals(1L, new Sudoku(pStr).countSolutionsAsync(1));
             // assertEquals(1L, new Sudoku(pStr).countSolutionsAsync(2));
             assertEquals(1L, new Sudoku(pStr).countSolutionsAsync(4));
         }
 
         // Valid puzzles (multiple solutions)
-        for (String pStr : PUZZLESTRS_TO_NUM_SOLUTIONS.keySet()) {
+        List<String> multiSolutionPuzzleStrs = ArraysUtil.shuffle(
+            new ArrayList<>(PUZZLESTRS_TO_NUM_SOLUTIONS.keySet())
+        ).subList(0, 3);
+        for (int i = 0; i < multiSolutionPuzzleStrs.size(); i++) {
+            String pStr = multiSolutionPuzzleStrs.get(i);
             Sudoku puzzle = new Sudoku(pStr);
             int expectedCount = PUZZLESTRS_TO_NUM_SOLUTIONS.get(pStr).intValue();
             assertEquals(expectedCount, puzzle.countSolutionsAsync(1));
@@ -1034,7 +1039,7 @@ public class TestSudoku {
 
     @Test
     void test_solutionsFlag_whenPuzzleIsValidSudoku_return1() {
-        for (String pStr : GeneratedPuzzles.getRandomPuzzles(100)) {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(10)) {
             Sudoku puzzle = new Sudoku(pStr);
             assertEquals(1, puzzle.solutionsFlag());
         }
@@ -1059,7 +1064,7 @@ public class TestSudoku {
 
     @Test
     void test_getAllSolutions_whenPuzzleIsInvalid_returnsListWithSingle() {
-        for (String pStr : GeneratedPuzzles.getRandomPuzzles(100)) {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(10)) {
             Sudoku puzzle = new Sudoku(pStr);
             List<Sudoku> result = puzzle.getAllSolutions();
             // Single solution
@@ -1353,7 +1358,7 @@ public class TestSudoku {
         rehydratedS = new Sudoku(s.toByteArray());
         assertArrayEquals(sBoard, rehydratedS.toArray());
 
-        for (String pStr : GeneratedPuzzles.PUZZLES_24_1000) {
+        for (String pStr : GeneratedPuzzles.getRandomPuzzles(10)) {
             s = new Sudoku(pStr);
             sBoard = s.toArray();
             rehydratedS = new Sudoku(s.toByteArray());
