@@ -1,6 +1,7 @@
 package io.github.metal_pony.sudoku;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -47,7 +48,6 @@ public class SudokuSieve {
     private final int[] board;
     private int size;
     private final ArrayList<ItemGroup> _itemGroupsByBitCount;
-    private int[] reductionMatrix;
 
     /**
      * Creates a new Sieve for the given sudoku configuration.
@@ -65,7 +65,6 @@ public class SudokuSieve {
         for (int n = 0; n <= SPACES; n++) {
             this._itemGroupsByBitCount.add(n, new ItemGroup(n));
         }
-        this.reductionMatrix = new int[SPACES];
     }
 
     /**
@@ -160,10 +159,15 @@ public class SudokuSieve {
      * @return The given array, for convenience.
      */
     public synchronized int[] reductionMatrix(int[] arr) {
-        if (arr.length != reductionMatrix.length) {
+        if (arr.length != SPACES) {
             throw new IllegalArgumentException("arr improper length");
         }
-        System.arraycopy(reductionMatrix, 0, arr, 0, reductionMatrix.length);
+        Arrays.fill(arr, 0);
+        for (SudokuMask item : items()) {
+            for (int i : item.toIndices()) {
+                arr[i]++;
+            }
+        }
         return arr;
     }
 
@@ -385,30 +389,6 @@ public class SudokuSieve {
     }
 
     /**
-     * Adds the given item to the reduction matrix.
-     * @param item Mask of the item to add.
-     */
-    synchronized void addToReductionMatrix(SudokuMask item) {
-        for (int i = 0; i < SPACES; i++) {
-            if (item.testBit(i)) {
-                reductionMatrix[i]++;
-            }
-        }
-    }
-
-    /**
-     * Subtracts the given item from the reduction matrix.
-     * @param item Mask of the item to subtract.
-     */
-    synchronized void subtractFromReductionMatrix(SudokuMask item) {
-        for (int i = 0; i < SPACES; i++) {
-            if (item.testBit(i)) {
-                reductionMatrix[i]--;
-            }
-        }
-    }
-
-    /**
      * Adds an item directly into the sieve without validating.
      * @param item Item to add.
      * @return True if the item was added; otherwise false if the item already exists.
@@ -417,7 +397,6 @@ public class SudokuSieve {
         if (!groupForBitCount(item.bitCount()).items.contains(item)) {
             groupForBitCount(item.bitCount()).items.add(item);
             size++;
-            addToReductionMatrix(item);
             return true;
         }
         return false;
@@ -473,7 +452,6 @@ public class SudokuSieve {
     public synchronized boolean remove(SudokuMask item) {
         if (groupForBitCount(item.bitCount()).items.remove(item)) {
             size--;
-            subtractFromReductionMatrix(item);
             return true;
         }
         return false;
@@ -519,7 +497,6 @@ public class SudokuSieve {
                     iter.remove();
                     removedList.add(item);
                     size--;
-                    subtractFromReductionMatrix(item);
                 }
             }
         }
