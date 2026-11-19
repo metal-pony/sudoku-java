@@ -3,6 +3,7 @@ package io.github.metal_pony.sudoku;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -510,16 +511,17 @@ public class SudokuSieve {
      */
     public synchronized List<SudokuMask> removeOverlapping(SudokuMask mask, List<SudokuMask> removedList) {
         for (ItemGroup group : _itemGroupsByBitCount) {
-            group.items.removeIf((i) -> {
-                // boolean shouldRemove = i.testBit(Sudoku.SPACES - 1 - cellIndex);
-                boolean shouldRemove = i.intersects(mask);
-                if (shouldRemove) {
-                    removedList.add(i);
+            final Iterator<SudokuMask> iter = group.items.iterator();
+            SudokuMask item;
+            while (iter.hasNext()) {
+                item = iter.next();
+                if (mask.intersects(item)) {
+                    iter.remove();
+                    removedList.add(item);
                     size--;
-                    subtractFromReductionMatrix(i);
+                    subtractFromReductionMatrix(item);
                 }
-                return shouldRemove;
-            });
+            }
         }
         return removedList;
     }
