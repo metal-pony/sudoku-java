@@ -307,6 +307,23 @@ public class TestCounting {
         }
 
         @Test
+        void testPermutationGenerationAndThenBackToRValue() {
+            for (int n = 0; n <= 8; n++) {
+                BigInteger nFact = Counting.factorial(n);
+                for (BigInteger r = BigInteger.ZERO; r.compareTo(nFact) < 0; r = r.add(BigInteger.ONE)) {
+                    int[] perm = Counting.permutation(n, r);
+                    assertEquals(r, Counting.permutationToR(perm));
+                }
+            }
+
+            BigInteger largeRank = Counting.factorial(25).subtract(BigInteger.ONE);
+            assertEquals(
+                largeRank,
+                Counting.permutationToR(Counting.permutation(25, largeRank))
+            );
+        }
+
+        @Test
         public void testPermsList_whenListIsNull_throwsException() {
             assertThrows(NullPointerException.class, () -> {
                 Counting.allPermutations(null);
