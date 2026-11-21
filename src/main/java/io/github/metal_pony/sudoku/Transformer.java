@@ -284,7 +284,6 @@ public class Transformer {
         for (int br = 0; br < 3; br++) {
             final int bandRow = br;
             apply(3, bandRows[br], (i, j) -> {
-                System.out.printf("swapping band %d rows %d <-> %d\n", bandRow, i, j);
                 sudoku.swapBandRows(bandRow, i, j);
             });
         }
@@ -292,27 +291,22 @@ public class Transformer {
         for (int sc = 0; sc < 3; sc++) {
             final int stackCol = sc;
             apply(3, stackCols[sc], (i, j) -> {
-                System.out.printf("swapping stack %d cols %d <-> %d\n", stackCol, i, j);
                 sudoku.swapStackCols(stackCol, i, j);
             });
         }
         // Apply bands transform
         apply(3, bands, (i, j) -> {
-            System.out.printf("swapping bands %d <-> %d\n", i, j);
             sudoku.swapBands(i, j);
         });
         // Apply stacks transform
         apply(3, stacks, (i, j) -> {
-            System.out.printf("swapping stacks %d <-> %d\n", i, j);
             sudoku.swapStacks(i, j);
         });
         // Apply digit-swapping
         apply(9, digits, (i, j) -> {
-            System.out.printf("swapping digits %d <-> %d\n", i + 1, j + 1);
             sudoku.swapDigits(i + 1, j + 1);
         });
         // Apply rotation
-        if (rotation > 0) System.out.printf("rotating %d\n", rotation);
         sudoku.rotate(rotation);
 
         // Transform side-effect: sudoku internal constraints are now out of sync.
