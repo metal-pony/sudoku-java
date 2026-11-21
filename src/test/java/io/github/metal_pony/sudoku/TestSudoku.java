@@ -565,28 +565,19 @@ public class TestSudoku {
         }
     }
 
-    // @Test
-    // NOTE: This takes a little while, so it's disabled for CI checks.
+    @Test
     void fingerprint_afterShuffling_isAlwaysTheSame() {
         int numShuffles = 100;
         Sudoku grid = Sudoku.generateConfig();
         String expectedLv2 = grid.fp2();
-        String expectedLv3 = grid.fp3();
+        // String expectedLv3 = grid.fp3();
 
-        int count = 0;
-        int slice = numShuffles / 80;
-        System.out.printf("[%s]\n[", "=".repeat(80));
         for (int t = 0; t < numShuffles; t++) {
-            if (++count == slice) {
-                System.out.print('.');
-                count -= slice;
-            }
-
             grid.scramble();
             assertEquals(expectedLv2, grid.fp2());
-            assertEquals(expectedLv3, grid.fp3());
+            // NOTE: This adds cpu time, so it's disabled for CI.
+            // assertEquals(expectedLv3, grid.fp3());
         }
-        System.out.println("]");
     }
 
     @Test
