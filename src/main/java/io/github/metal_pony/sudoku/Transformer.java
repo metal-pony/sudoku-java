@@ -315,10 +315,4 @@ public class Transformer {
 
         return sudoku;
     }
-
-    // TODO
-    // Transform iterator
-    // next()
-    // previous()
-    // Could also use builder pattern to enable iteration over specific transforms (e.g. iterate over all band and band row transform combinations).
 }
