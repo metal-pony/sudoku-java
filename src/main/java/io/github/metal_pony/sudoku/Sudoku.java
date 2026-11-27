@@ -2228,7 +2228,10 @@ public class Sudoku {
     /**
      * Swaps all of digit {a} on the board with digit {b}.
      * Does nothing if digits are the same, or it either are out of bounds.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @param a Digit to swap {b} with.
      * @param b Digit to swap {a} with.
      */
@@ -2249,7 +2252,10 @@ public class Sudoku {
      * Rearranges the board digits such that the top row is sequential, 1 through 9.
      * If the grid is not solved, or does not have a unique solution,
      * then this has no effect.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @return This sudoku.
      */
     public Sudoku normalize() {
@@ -2265,7 +2271,10 @@ public class Sudoku {
 
     /**
      * Rotates the board clockwise the given number of turns.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @param turns Number of times to rotate the board.
      * @return This sudoku.
      */
@@ -2281,7 +2290,10 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the horizontal.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @return This sudoku.
      */
     public Sudoku reflectHorizontal() {
@@ -2292,7 +2304,10 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the vertical.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @return This sudoku.
      */
     public Sudoku reflectVertical() {
@@ -2303,7 +2318,10 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the diagonal.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @return This sudoku.
      */
     public Sudoku reflectDiagonal() {
@@ -2314,7 +2332,10 @@ public class Sudoku {
 
     /**
      * Reflects the board values over the antidiagonal.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @return This sudoku.
      */
     public Sudoku reflectAntiDiagonal() {
@@ -2325,7 +2346,10 @@ public class Sudoku {
 
     /**
      * Swaps the specified bands.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @param bandIndexA Band index (0, 1, or 2).
      * @param bandIndexB Band index, different than A.
      * @return This sudoku.
@@ -2338,7 +2362,10 @@ public class Sudoku {
 
     /**
      * Swaps the specified rows within a band.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @param bandIndex Band index (0, 1, or 2).
      * @param rowA Row index (0, 1, or 2).
      * @param rowB Row index , different than A.
@@ -2352,7 +2379,10 @@ public class Sudoku {
 
     /**
      * Swaps the specified stacks.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @param stackIndexA Stack index (0, 1, or 2).
      * @param stackIndexB Stack index, different than A.
      * @return This sudoku.
@@ -2365,7 +2395,10 @@ public class Sudoku {
 
     /**
      * Swaps the specified columns within a stack.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @param stackIndex Stack index (0, 1, or 2).
      * @param colA Column index (0, 1, or 2).
      * @param colB Column index , different than A.
@@ -2380,54 +2413,20 @@ public class Sudoku {
     /**
      * Scrambles the sudoku via symmetry-preserving transformations. Afterwards, the
      * board will look completely different, but will still be essentially the same.
-     * TODO Ensure constraints are kept in sync.
      * @return This sudoku.
      */
     public Sudoku scramble() {
-        rotate(ThreadLocalRandom.current().nextInt(4));
-
-        randomizeDigits();
-
-        List<Runnable> transforms = new ArrayList<>(){{
-            add(() -> swapBands(0, 1));
-            add(() -> swapBands(0, 2));
-            add(() -> swapBands(1, 2));
-            add(() -> swapBandRows(0, 0, 1));
-            add(() -> swapBandRows(0, 0, 2));
-            add(() -> swapBandRows(0, 1, 2));
-            add(() -> swapBandRows(1, 0, 1));
-            add(() -> swapBandRows(1, 0, 2));
-            add(() -> swapBandRows(1, 1, 2));
-            add(() -> swapBandRows(2, 0, 1));
-            add(() -> swapBandRows(2, 0, 2));
-            add(() -> swapBandRows(2, 1, 2));
-            add(() -> swapStacks(0, 1));
-            add(() -> swapStacks(0, 2));
-            add(() -> swapStacks(1, 2));
-            add(() -> swapStackCols(0, 0, 1));
-            add(() -> swapStackCols(0, 0, 2));
-            add(() -> swapStackCols(0, 1, 2));
-            add(() -> swapStackCols(1, 0, 1));
-            add(() -> swapStackCols(1, 0, 2));
-            add(() -> swapStackCols(1, 1, 2));
-            add(() -> swapStackCols(2, 0, 1));
-            add(() -> swapStackCols(2, 0, 2));
-            add(() -> swapStackCols(2, 1, 2));
-        }};
-
-        final int nTransforms = transforms.size();
-        ThreadLocalRandom rand = ThreadLocalRandom.current();
-        for (int t = 0; t < 137; t++) {
-            transforms.get(rand.nextInt(nTransforms)).run();
-        }
-
+        Transformer.random(this);
         return this;
     }
 
     /**
      * Randomly swaps combinations of digits on the board.
      * Afterwards, the grid will be essentially the same, just with different numbers.
-     * TODO Ensure constraints are kept in sync.
+     * <br>SIDE-EFFECT NOTE:
+     * There are internally-tracked positional constraints (used for puzzle solving)
+     * that will be out of sync with the board after transformations.
+     * Use `resetCandidatesAndValidity()` to rebuild them.
      * @return This sudoku.
      */
     public Sudoku randomizeDigits() {

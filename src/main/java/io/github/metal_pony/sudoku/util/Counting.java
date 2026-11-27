@@ -442,11 +442,29 @@ public class Counting {
 		return result;
 	}
 
-	// precondition: each element in perms must be unique; and all elements cover integers in [0, perms.length).
-	// TODO
-	private static BigInteger permToR(int[] perm) {
-		// NYI
-		return null;
+	/**
+	 * Calculates the index of a permutation of the numbers [0, n), using the
+	 * ordering used by {@link #permutation(int, BigInteger)}.
+	 * @param perm Permutation to rank; its elements must be unique and cover [0, perm.length).
+	 * @return The index of the permutation as a BigInteger.
+	 */
+	public static BigInteger permutationToR(int[] perm) {
+		BigInteger r = BigInteger.ZERO;
+		int n = perm.length;
+		int[] items = range(n);
+
+		for (int i = 0; i < n; i++) {
+			int q = 0;
+			while (items[q] != perm[i]) q++;
+
+			r = r.add(factorial(n - i - 1).multiply(BigInteger.valueOf(q)));
+
+			for (int j = q + 1; j < n - i; j++) {
+				items[j - 1] = items[j];
+			}
+		}
+
+		return r;
 	}
 
 	/**

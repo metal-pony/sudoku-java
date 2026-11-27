@@ -489,6 +489,20 @@ public class ArraysUtil {
     }
 
     /**
+     * Finds the first occurrence of a value in the given array
+     * and returns the index.
+     * @param arr Array to search in.
+     * @param value Value to search for.
+     * @return Index of value within the array; or -1 if not found.
+     */
+    public static int indexOf(int[] arr, int value) {
+        for (int i = 0; i < arr.length; i++) {
+            if (arr[i] == value) return i;
+        }
+        return -1;
+    }
+
+    /**
      * Returns a binary string representation of the given byte array.
      * @param bytes Byte array to convert.
      * @return String representing the given byte array.
