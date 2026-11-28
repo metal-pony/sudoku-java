@@ -561,11 +561,7 @@ public class ArraysUtil {
         int cols = arr.length / rows;
         for (int r = 0; r < (rows / 2); r++) {
             for (int c = 0; c < cols; c++) {
-                int ai = r * cols + c;
-                int bi = (rows - r - 1) * cols + c;
-                arr[ai] ^= arr[bi];
-                arr[bi] ^= arr[ai];
-                arr[ai] ^= arr[bi];
+                swap(arr, r * cols + c, (rows - r - 1) * cols + c);
             }
         }
         return arr;
@@ -585,11 +581,7 @@ public class ArraysUtil {
         int cols = arr.length / rows;
         for (int c = 0; c < (cols / 2); c++) {
             for (int r = 0; r < rows; r++) {
-                int ai = r * cols + c;
-                int bi = r * cols + (cols - c - 1);
-                arr[ai] ^= arr[bi];
-                arr[bi] ^= arr[ai];
-                arr[ai] ^= arr[bi];
+                swap(arr, r * cols + c, r * cols + (cols - c - 1));
             }
         }
         return arr;

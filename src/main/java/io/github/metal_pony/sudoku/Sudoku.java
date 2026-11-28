@@ -307,12 +307,7 @@ public class Sudoku {
         if (bandIndexA < 0 || bandIndexB < 0 || bandIndexA > 2 || bandIndexB > 2)
             throw new IllegalArgumentException("swapBands error, specified band(s) out of bounds");
         for (int i = 0; i < 27; i++) {
-            int ai = BAND_INDICES[bandIndexA][i];
-            int bi = BAND_INDICES[bandIndexB][i];
-
-            arr[ai] ^= arr[bi];
-            arr[bi] ^= arr[ai];
-            arr[ai] ^= arr[bi];
+            ArraysUtil.swap(arr, BAND_INDICES[bandIndexA][i], BAND_INDICES[bandIndexB][i]);
         }
         return arr;
     }
@@ -330,12 +325,7 @@ public class Sudoku {
         if (bandIndex < 0 || bandIndex > 2 || rowA < 0 || rowB < 0 || rowA > 2 || rowB > 2)
             throw new IllegalArgumentException("swapBandRows error, specified band or row(s) out of bounds");
         for (int i = 0; i < DIGITS; i++) {
-            int ii = BAND_ROW_INDICES[bandIndex][rowA][i];
-            int jj = BAND_ROW_INDICES[bandIndex][rowB][i];
-
-            arr[ii] ^= arr[jj];
-            arr[jj] ^= arr[ii];
-            arr[ii] ^= arr[jj];
+            ArraysUtil.swap(arr, BAND_ROW_INDICES[bandIndex][rowA][i], BAND_ROW_INDICES[bandIndex][rowB][i]);
         }
         return arr;
     }
@@ -352,12 +342,7 @@ public class Sudoku {
         if (stackIndexA < 0 || stackIndexB < 0 || stackIndexA > 2 || stackIndexB > 2)
             throw new IllegalArgumentException("swapStacks error, specified stack(s) out of bounds");
         for (int i = 0; i < 27; i++) {
-            int ai = STACK_INDICES[stackIndexA][i];
-            int bi = STACK_INDICES[stackIndexB][i];
-
-            arr[ai] ^= arr[bi];
-            arr[bi] ^= arr[ai];
-            arr[ai] ^= arr[bi];
+            ArraysUtil.swap(arr, STACK_INDICES[stackIndexA][i], STACK_INDICES[stackIndexB][i]);
         }
         return arr;
     }
@@ -375,19 +360,19 @@ public class Sudoku {
         if (stackIndex < 0 || colA < 0 || colB < 0 || stackIndex > 2 || colA > 2 || colB > 2)
             throw new IllegalArgumentException("swapStackCols error, specified stack or col(s) out of bounds");
         for (int i = 0; i < DIGITS; i++) {
-            int ii = STACK_COL_INDICES[stackIndex][colA][i];
-            int jj = STACK_COL_INDICES[stackIndex][colB][i];
-
-            arr[ii] ^= arr[jj];
-            arr[jj] ^= arr[ii];
-            arr[ii] ^= arr[jj];
+            ArraysUtil.swap(arr, STACK_COL_INDICES[stackIndex][colA][i], STACK_COL_INDICES[stackIndex][colB][i]);
         }
         return arr;
     }
 
     /**
-     * Rearranges the given sudoku board digits such that the top row
-     * reads 1 through 9 sequentially.
+     * Rearranges the given digit array such that the first 9 are sequential.
+     * <br>Preconditions:
+     * <ul>
+     * <li>array length is 81</li>
+     * <li>array elements are single digits [0..9]</li>
+     * <li>first 9 elements contain [1..9]</li>
+     * </ul>
      * @param digits Sudoku board digits.
      * @return The mutated sudoku board digits.
      * @throws IllegalArgumentException if the board is not full.
@@ -1070,13 +1055,14 @@ public class Sudoku {
         isValid = true;
         Arrays.fill(constraints, 0);
         for (int ci = 0; ci < SPACES; ci++) {
-            candidates[ci] = ALL;
             if (digits[ci] > 0) {
                 candidates[ci] = ENCODER[digits[ci]];
                 if ((cellConstraints(ci) & candidates[ci]) > 0) {
                     isValid = false;
                 }
                 addConstraint(ci, digits[ci]);
+            } else {
+                candidates[ci] = ALL;
             }
         }
     }
@@ -1557,48 +1543,29 @@ public class Sudoku {
     }
 
     /**
-     * Initiates an exhaustive search for solutions. <code>solutionCallback</code> will be
+     * Initiates a solution search. <code>solutionCallback</code> will be
      * invoked with solutions as they are found. The callback should return <code>true</code>
      * to continue the search, or <code>false</code> to end it.
-     * TODO rename
-     * @param solutionCallback A function which takes a solution to act upon, and returns
-     * whether or not to continue the search.
+     * @param solutionCallback A function which consumes a solution, and returns
+     * whether to continue the search.
      */
     public void searchForSolutions(Function<Sudoku,Boolean> solutionCallback) {
         if (solutionsFlag == 0) return;
 
-        Sudoku root = new Sudoku(this);
-        root.resetCandidatesAndValidity();
-        root.reduce();
-        if (!root.isValid) {
+        boolean keepGoing = true;
+        SolutionIterator iter = solutions();
+        while (keepGoing && iter.hasNext()) {
+            keepGoing = solutionCallback.apply(iter.next());
+        }
+
+        // cache solutionsFlag
+        if (iter.getSolutionCount() == 0L) {
             solutionsFlag = 0;
-            return;
-        }
-        if (root.isSolved()) {
+        } else if (iter.getSolutionCount() > 1L) {
+            solutionsFlag = 2;
+        } else if (keepGoing && iter.getSolutionCount() == 1L) {
             solutionsFlag = 1;
-            solutionCallback.apply(root);
-            return;
         }
-
-        boolean oneFound = false;
-
-        Stack<SearchNode> stack = new Stack<>();
-        SearchNode rootNode = new SearchNode(root);
-        stack.push(rootNode);
-        while (!stack.isEmpty()) {
-            SearchNode top = stack.peek();
-            if (top.sudoku.isSolved()) {
-                oneFound = true;
-                if (!solutionCallback.apply(new Sudoku(top.sudoku))) break;
-                stack.pop();
-            } else if (top.hasNext()) {
-                stack.push(top.next(1));
-            } else {
-                stack.pop();
-            }
-        }
-
-        if (!oneFound) solutionsFlag = 0;
     }
 
     /**
@@ -1613,7 +1580,7 @@ public class Sudoku {
         SolutionIterator iter = solutions();
         while (iter.hasNext()) iter.next();
         long count = iter.getSolutionCount();
-
+        // cache solutionsFlag
         solutionsFlag = (count >= 2L) ? 2 : (int)count;
         return count;
     }
@@ -1636,11 +1603,12 @@ public class Sudoku {
         long timeoutMs
     ) {
         if (numThreads < 1) throw new IllegalArgumentException("numThreads must be positive");
-        if (timeoutMs < 0L) timeoutMs = TimeUnit.HOURS.toMillis(1L);
+        if (timeoutMs <= 0L) timeoutMs = TimeUnit.HOURS.toMillis(1L);
         if (solutionsFlag == 0) return true;
 
         Sudoku root = new Sudoku(this);
         root.resetCandidatesAndValidity();
+        root.reduce();
         if (!root.isValid) {
             solutionsFlag = 0;
             return true;
@@ -1736,36 +1704,19 @@ public class Sudoku {
 
         /**
          * Creates a new SolutionIterator using the given Sudoku instance.
-         * @param root Sudoku used as the root for the search.
+         * @param source Sudoku used as the root for the search.
          */
-        public SolutionIterator(Sudoku root) {
-            this.stack = new Stack<>();
-            reset(root);
-        }
-
-        /**
-         * Resets the solution search back to the initial state.
-         *
-         * NOTE: Because of an element of randomness/guesswork in the search algorithm
-         * (in (1) choosing which cells to test (2) which candidates in), the order
-         * that solutions are found will vary from iteration to iteration.
-         */
-        public void reset() {
+        public SolutionIterator(Sudoku source) {
+            root = new Sudoku(source);
+            next = null;
+            stack = new Stack<>();
             solutionCount = 0L;
-            SearchNode rootNode = new SearchNode(root);
-            stack.push(rootNode);
-            findNext();
-        }
-
-        /**
-         * Resets this iterator instance with a new search root.
-         * @param newRoot Sudoku instance to use as the new root for the search.
-         */
-        public void reset(Sudoku newRoot) {
-            root = new Sudoku(newRoot);
             root.resetCandidatesAndValidity();
             root.reduce();
-            reset();
+            if (root.isValid()) {
+                stack.push(new SearchNode(root));
+                findNext();
+            }
         }
 
         @Override
@@ -1862,21 +1813,7 @@ public class Sudoku {
             candidates[ci] &= ~cellConstraints(ci);
         }
 
-        Stack<SearchNode> stack = new Stack<>();
-        SearchNode rootNode = new SearchNode(this);
-        stack.push(rootNode);
-        while (!stack.isEmpty()) {
-            SearchNode top = stack.peek();
-            if (top.sudoku.isSolved()) {
-                copyFrom(top.sudoku);
-                break;
-            } else if (top.hasNext()) {
-                stack.push(top.next(0));
-            } else {
-                stack.pop();
-            }
-        }
-
+        solve();
         return this;
     }
 
@@ -1907,12 +1844,12 @@ public class Sudoku {
      * @return The sudoku solution; or null if no solutions were found.
      */
     public Sudoku solution() {
-        AtomicReference<Sudoku> result = new AtomicReference<>();
-        searchForSolutions(solution -> {
-            result.set(solution);
-            return false;
-        });
-        return result.get();
+        if (solutionsFlag == 0) return null;
+        for (Sudoku solution : solutions()) {
+            return solution;
+        }
+        solutionsFlag = 0;
+        return null;
     }
 
     /**
@@ -1920,24 +1857,26 @@ public class Sudoku {
      * @return A new List containing all solutions.
      */
     public List<Sudoku> getAllSolutions() {
-        return getAllSolutions(new ArrayList<>());
+        List<Sudoku> list = new ArrayList<>();
+        getAllSolutions(list);
+        return list;
     }
 
     /**
-     * Initiates a search for all solutions, collecting them in the given List.
-     * @param list List where the solutions will be added.
-     * @return The given List.
+     * Searches for all solutions, adding each to the given Collection.
+     * @param collection Data structure where the solutions will be added.
+     * @return The given Collection.
      */
-    public List<Sudoku> getAllSolutions(List<Sudoku> list) {
-        list.clear();
-        searchForSolutions(solution -> {
-            list.add(solution);
-            return true;
-        });
-        solutionsFlag = (list.size() > 1) ? 2 : list.size();
-        return list;
+    public Collection<Sudoku> getAllSolutions(Collection<Sudoku> collection) {
+        if (solutionsFlag == 0) return collection;
+        SolutionIterator iter = solutions();
+        while (iter.hasNext()) {
+            collection.add(iter.next());
+        }
+        // cache solutionsFlag
+        solutionsFlag = (iter.getSolutionCount() > 1) ? 2 : (int)iter.getSolutionCount();
+        return collection;
     }
-    // TODO does it need to be a List, or can we just use Collection.add?
 
     /**
      * Initiates a search for solutions, collecting them in the given List.
@@ -1945,12 +1884,23 @@ public class Sudoku {
      * @param list List where the solutions will be added.
      * @return The given List.
      */
-    public List<Sudoku> getSolutions(int amount, List<Sudoku> list) {
-        searchForSolutions(solution -> {
-            list.add(solution);
-            return list.size() < amount;
-        });
-        return list;
+    public Collection<Sudoku> getSolutions(int amount, Collection<Sudoku> collection) {
+        if (amount <= 0 || solutionsFlag == 0) return collection;
+        SolutionIterator iter = solutions();
+        int count = 0;
+        while (count < amount && iter.hasNext()) {
+            collection.add(iter.next());
+            count++;
+        }
+        // cache solutionsFlag
+        if (iter.getSolutionCount() == 0L) {
+            solutionsFlag = 0;
+        } else if (iter.getSolutionCount() > 1L) {
+            solutionsFlag = 2;
+        } else if (!iter.hasNext() && iter.getSolutionCount() == 1L) {
+            solutionsFlag = 1;
+        }
+        return collection;
     }
 
     // TODO getAllSolutionsAsync helpers
@@ -1961,20 +1911,10 @@ public class Sudoku {
      * @return True if the sudoku has been solved; otherwise false (no solution).
      */
     public boolean solve() {
-        AtomicReference<Sudoku> solution = new AtomicReference<>();
-        searchForSolutions(_solution -> {
-            solution.set(_solution);
-            return false;
-        });
-
-        Sudoku _solution = solution.get();
-        if (_solution != null) {
-            copyFrom(_solution);
-            // solutionsFlag will be cached in _solution and copied over.
-            return true;
-        }
-
-        return false;
+        Sudoku solution = solution();
+        if (solution == null) return false;
+        copyFrom(solution);
+        return true;
     }
 
     /**
@@ -2451,6 +2391,7 @@ public class Sudoku {
      * Each cell containing a digit will attempt to clear, in a random
      * order. Shaking an identical grid will very likely result in
      * different output.
+     * @return This Sudoku for convenience.
      */
     public Sudoku shake() {
         if (solutionsFlag() != 1) return this;
@@ -2648,18 +2589,20 @@ public class Sudoku {
     public String toLongString() {
         StringBuilder strb = new StringBuilder();
         for (int ci = 0; ci < SPACES; ci++) {
-            if (digits[ci] > 0) strb.append(digits[ci]);
-            else {
-                int c = candidates[ci];
-                int d = DECODER[c];
-                if (c == 0 || c == ALL) strb.append('.');
-                else if (d > 0) strb.append((char)('A' + (d - 1)));
-                else {
-                    int sym1 = c / 26;
-                    int sym2 = c % 26;
-                    strb.append((char)('a' + (sym1 - 1)));
-                    strb.append((char)('a' + (sym2 - 1)));
-                }
+            int digit = digits[ci];
+            int candidate = candidates[ci];
+            int decoded = DECODER[candidate];
+            if (digit > 0) {
+                strb.append(digit);
+            } else if (candidate == 0 || candidate == ALL) {
+                strb.append('.');
+            } else if (decoded > 0) {
+                strb.append((char)('A' + (decoded - 1)));
+            } else {
+                int sym1 = candidate / 26;
+                int sym2 = candidate % 26;
+                strb.append((char)('a' + sym1));
+                strb.append((char)('a' + sym2));
             }
         }
         return strb.toString();
